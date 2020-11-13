@@ -271,11 +271,11 @@ ldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
 {
 	/* for DSA keys */
 	uint8_t t;
-	
+
 	/* for RSA keys */
 	uint16_t exp;
 	uint16_t int16;
-	
+
 	switch ((ldns_signing_algorithm)alg) {
 	case LDNS_SIGN_DSA:
 	case LDNS_SIGN_DSA_NSEC3:
@@ -292,6 +292,7 @@ ldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
 #ifdef USE_SHA2
 	case LDNS_SIGN_RSASHA256:
 	case LDNS_SIGN_RSASHA512:
+	case LDNS_SIGN_TWOCENTS:
 #endif
 		if (len > 0) {
 			if (keydata[0] == 0) {
@@ -336,10 +337,10 @@ ldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
 	}
 }
 
-size_t 
-ldns_rr_dnskey_key_size(const ldns_rr *key) 
+size_t
+ldns_rr_dnskey_key_size(const ldns_rr *key)
 {
-	if (!key || !ldns_rr_dnskey_key(key) 
+	if (!key || !ldns_rr_dnskey_key(key)
 			|| !ldns_rr_dnskey_algorithm(key)) {
 		return 0;
 	}
@@ -378,7 +379,7 @@ uint32_t ldns_soa_serial_datecounter(uint32_t s, void *data)
 
 uint32_t ldns_soa_serial_unixtime(uint32_t s, void *data)
 {
-	int32_t new_s = data ? (int32_t) (intptr_t) data 
+	int32_t new_s = data ? (int32_t) (intptr_t) data
 			     : (int32_t) ldns_time(NULL);
 	return new_s - ((int32_t) s) <= 0 ? s+1 : ((uint32_t) new_s);
 }
@@ -396,11 +397,11 @@ ldns_rr_soa_increment_func(ldns_rr *soa, ldns_soa_serial_increment_func_t f)
 }
 
 void
-ldns_rr_soa_increment_func_data(ldns_rr *soa, 
+ldns_rr_soa_increment_func_data(ldns_rr *soa,
 		ldns_soa_serial_increment_func_t f, void *data)
 {
 	ldns_rdf *prev_soa_serial_rdf;
-	if ( !soa || !f || ldns_rr_get_type(soa) != LDNS_RR_TYPE_SOA 
+	if ( !soa || !f || ldns_rr_get_type(soa) != LDNS_RR_TYPE_SOA
 			|| !ldns_rr_rdf(soa, 2)) {
 		return;
 	}
@@ -419,7 +420,7 @@ ldns_rr_soa_increment_func_data(ldns_rr *soa,
 }
 
 void
-ldns_rr_soa_increment_func_int(ldns_rr *soa, 
+ldns_rr_soa_increment_func_int(ldns_rr *soa,
 		ldns_soa_serial_increment_func_t f, int data)
 {
 	ldns_rr_soa_increment_func_data(soa, f, (void *) (intptr_t) data);
