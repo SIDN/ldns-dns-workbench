@@ -110,6 +110,9 @@
 /examples/ldns-signzone
 /examples/ldns-signzone.lo
 /examples/ldns-signzone.o
+/examples/ldns-sign-special
+/examples/ldns-sign-special.lo
+/examples/ldns-sign-special.o
 /examples/ldns-test-edns
 /examples/ldns-test-edns.lo
 /examples/ldns-test-edns.o

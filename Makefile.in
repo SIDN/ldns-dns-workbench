@@ -72,15 +72,15 @@ LINTFLAGS       += -D"__BEGIN_DECLS=" -D"__ssize_t=ssize_t" -D"__intptr_t=intptr
 LINTFLAGS       += -D"_RuneLocale=int"
 DEPFLAG		= @DEPFLAG@
 
-INSTALL		= $(srcdir)/install-sh 
+INSTALL		= $(srcdir)/install-sh
 
 LIBLOBJS	= $(LIBOBJS:.o=.lo)
-LDNS_LOBJS	= buffer.lo dane.lo dname.lo dnssec.lo dnssec_sign.lo dnssec_verify.lo dnssec_zone.lo duration.lo error.lo higher.lo host2str.lo host2wire.lo keys.lo net.lo packet.lo parse.lo radix.lo rbtree.lo rdata.lo resolver.lo rr.lo rr_functions.lo sha1.lo sha2.lo str2host.lo tsig.lo update.lo util.lo wire2host.lo zone.lo 
+LDNS_LOBJS	= buffer.lo dane.lo dname.lo dnssec.lo dnssec_sign.lo dnssec_verify.lo dnssec_zone.lo duration.lo error.lo higher.lo host2str.lo host2wire.lo keys.lo net.lo packet.lo parse.lo radix.lo rbtree.lo rdata.lo resolver.lo rr.lo rr_functions.lo sha1.lo sha2.lo str2host.lo tsig.lo update.lo util.lo wire2host.lo zone.lo
 LDNS_LOBJS_EX	= ^linktest\.c$$
 LDNS_ALL_LOBJS	= $(LDNS_LOBJS) $(LIBLOBJS)
 LIB		= libldns.la
 
-LDNS_HEADERS	= buffer.h dane.h dname.h dnssec.h dnssec_sign.h dnssec_verify.h dnssec_zone.h duration.h error.h higher.h host2str.h host2wire.h keys.h ldns.h packet.h parse.h radix.h rbtree.h rdata.h resolver.h rr_functions.h rr.h sha1.h sha2.h str2host.h tsig.h update.h wire2host.h zone.h 
+LDNS_HEADERS	= buffer.h dane.h dname.h dnssec.h dnssec_sign.h dnssec_verify.h dnssec_zone.h duration.h error.h higher.h host2str.h host2wire.h keys.h ldns.h packet.h parse.h radix.h rbtree.h rdata.h resolver.h rr_functions.h rr.h sha1.h sha2.h str2host.h tsig.h update.h wire2host.h zone.h
 LDNS_HEADERS_EX	= ^config\.h|common\.h|util\.h|net\.h$$
 LDNS_HEADERS_GEN= common.h util.h net.h
 
@@ -88,18 +88,18 @@ PYLDNS_I_FILES	= $(pywrapdir)/file_py3.i $(pywrapdir)/ldns_buffer.i $(pywrapdir)
 
 DRILL_LOBJS	= drill/chasetrace.lo drill/dnssec.lo drill/drill.lo drill/drill_util.lo drill/error.lo drill/root.lo drill/securetrace.lo drill/work.lo
 
-EXAMPLE_LOBJS	= examples/ldns-chaos.lo examples/ldns-compare-zones.lo examples/ldns-dane.lo examples/ldnsd.lo examples/ldns-dpa.lo examples/ldns-gen-zone.lo examples/ldns-key2ds.lo examples/ldns-keyfetcher.lo examples/ldns-keygen.lo examples/ldns-mx.lo examples/ldns-notify.lo examples/ldns-nsec3-hash.lo examples/ldns-read-zone.lo examples/ldns-resolver.lo examples/ldns-revoke.lo examples/ldns-rrsig.lo examples/ldns-signzone.lo examples/ldns-test-edns.lo examples/ldns-testns.lo examples/ldns-testpkts.lo examples/ldns-update.lo examples/ldns-verify-zone.lo examples/ldns-version.lo examples/ldns-walk.lo examples/ldns-zcat.lo examples/ldns-zsplit.lo
-EXAMPLE_PROGS	= examples/ldns-chaos examples/ldns-compare-zones examples/ldnsd examples/ldns-gen-zone examples/ldns-key2ds examples/ldns-keyfetcher examples/ldns-keygen examples/ldns-mx examples/ldns-notify examples/ldns-read-zone examples/ldns-resolver examples/ldns-rrsig examples/ldns-test-edns examples/ldns-update examples/ldns-version examples/ldns-walk examples/ldns-zcat examples/ldns-zsplit 
-EX_PROGS_BASENM	= ldns-chaos ldns-compare-zones ldns-dane ldnsd ldns-dpa ldns-gen-zone ldns-key2ds ldns-keyfetcher ldns-keygen ldns-mx ldns-notify ldns-nsec3-hash ldns-read-zone ldns-resolver ldns-revoke ldns-rrsig ldns-signzone ldns-test-edns ldns-testns ldns-testpkts ldns-update ldns-verify-zone ldns-version ldns-walk ldns-zcat ldns-zsplit 
-EXAMPLE_PROGS_EX= ^examples/ldns-testpkts\.c|examples/ldns-testns\.c|examples/ldns-dane\.c|examples/ldns-dpa\.c|examples/ldns-nsec3-hash\.c|examples/ldns-revoke\.c|examples/ldns-signzone\.c|examples/ldns-verify-zone\.c$$
+EXAMPLE_LOBJS	= examples/ldns-chaos.lo examples/ldns-compare-zones.lo examples/ldns-dane.lo examples/ldnsd.lo examples/ldns-dpa.lo examples/ldns-gen-zone.lo examples/ldns-key2ds.lo examples/ldns-keyfetcher.lo examples/ldns-keygen.lo examples/ldns-mx.lo examples/ldns-notify.lo examples/ldns-nsec3-hash.lo examples/ldns-read-zone.lo examples/ldns-resolver.lo examples/ldns-revoke.lo examples/ldns-rrsig.lo examples/ldns-signzone.lo examples/ldns-sign-special.lo examples/ldns-test-edns.lo examples/ldns-testns.lo examples/ldns-testpkts.lo examples/ldns-update.lo examples/ldns-verify-zone.lo examples/ldns-version.lo examples/ldns-walk.lo examples/ldns-zcat.lo examples/ldns-zsplit.lo
+EXAMPLE_PROGS	= examples/ldns-chaos examples/ldns-compare-zones examples/ldnsd examples/ldns-gen-zone examples/ldns-key2ds examples/ldns-keyfetcher examples/ldns-keygen examples/ldns-mx examples/ldns-notify examples/ldns-read-zone examples/ldns-resolver examples/ldns-rrsig examples/ldns-test-edns examples/ldns-update examples/ldns-version examples/ldns-walk examples/ldns-zcat examples/ldns-zsplit
+EX_PROGS_BASENM	= ldns-chaos ldns-compare-zones ldns-dane ldnsd ldns-dpa ldns-gen-zone ldns-key2ds ldns-keyfetcher ldns-keygen ldns-mx ldns-notify ldns-nsec3-hash ldns-read-zone ldns-resolver ldns-revoke ldns-rrsig ldns-signzone ldns-sign-special ldns-test-edns ldns-testns ldns-testpkts ldns-update ldns-verify-zone ldns-version ldns-walk ldns-zcat ldns-zsplit
+EXAMPLE_PROGS_EX= ^examples/ldns-testpkts\.c|examples/ldns-testns\.c|examples/ldns-dane\.c|examples/ldns-dpa\.c|examples/ldns-nsec3-hash\.c|examples/ldns-revoke\.c|examples/ldns-signzone\.c|examples/ldns-sign-special\.c|examples/ldns-verify-zone\.c$$
 TESTNS		= examples/ldns-testns
 TESTNS_LOBJS	= examples/ldns-testns.lo examples/ldns-testpkts.lo
 LDNS_DPA	= examples/ldns-dpa
 LDNS_DPA_LOBJS	= examples/ldns-dpa.lo
 LDNS_DANE	= examples/ldns-dane
 LDNS_DANE_LOBJS	= examples/ldns-dane.lo
-EX_SSL_PROGS	= examples/ldns-nsec3-hash examples/ldns-revoke examples/ldns-signzone examples/ldns-verify-zone
-EX_SSL_LOBJS	= examples/ldns-nsec3-hash.lo examples/ldns-revoke.lo examples/ldns-signzone.lo examples/ldns-verify-zone.lo
+EX_SSL_PROGS	= examples/ldns-nsec3-hash examples/ldns-revoke examples/ldns-signzone examples/ldns-sign-special examples/ldns-verify-zone
+EX_SSL_LOBJS	= examples/ldns-nsec3-hash.lo examples/ldns-revoke.lo examples/ldns-signzone.lo example/ldns-sign-special.lo examples/ldns-verify-zone.lo
 
 COMPILE		= $(CC) $(CPPFLAGS) $(CFLAGS)
 COMP_LIB	= $(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS)
@@ -221,7 +221,7 @@ uninstall-examples:
 	test ! -d $(DESTDIR)$(bindir) || rmdir -p $(DESTDIR)$(bindir) || : ;
 
 clean-examples:
-	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_PROGS) 
+	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_PROGS)
 	$(LIBTOOL) --mode clean rm -f $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS)
 	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_LOBJS)
 	$(LIBTOOL) --mode clean rm -f examples/ldns-dane.1 examples/ldns-verify-zone.1
@@ -252,7 +252,7 @@ doxygen:
 doc: manpages $(doxygen)
 	@$(INSTALL) -d doc
 
-manpages: $(srcdir)/doc/function_manpages 
+manpages: $(srcdir)/doc/function_manpages
 	@$(INSTALL) -d doc/man/man3
 	@if [ -f $(srcdir)/doc/man/man3/ldns_rr.3 ] ; \
 	then \
@@ -274,7 +274,7 @@ manpages: $(srcdir)/doc/function_manpages
 			| grep -v ^doxygen | grep -v ^cat  > doc/ldns_manpages; \
 	fi
 
-manpage-create-errors: $(srcdir)/doc/function_manpages 
+manpage-create-errors: $(srcdir)/doc/function_manpages
 	@$(INSTALL) -d doc
 	@cat $(srcdir)/ldns/*.h \
 	| $(srcdir)/doc/doxyparse.pl -e \
@@ -300,7 +300,7 @@ $(pywrapdir)/ldns_wrapper.c: $(PYLDNS_I_FILES) ldns/config.h
 ldns_wrapper.lo: $(pywrapdir)/ldns_wrapper.c ldns/config.h
 	$(COMP_LIB) -I./include/ldns $(LIBSSL_CPPFLAGS) $(PYTHON_CPPFLAGS) $(PYTHON_X_CFLAGS) -c $(pywrapdir)/ldns_wrapper.c -o $@
 
-_ldns.la: ldns_wrapper.lo libldns.la 
+_ldns.la: ldns_wrapper.lo libldns.la
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(PYTHON_CFLAGS) $(LDFLAGS) $(PYTHON_LDFLAGS) -module -version-info $(version_info) -no-undefined -o $@ ldns_wrapper.lo -rpath $(python_site) -L. -L.libs -lldns $(LIBS)
 
 $(p5_dns_ldns_dir)/Makefile: $(p5_dns_ldns_dir)/Makefile.PL
@@ -385,7 +385,7 @@ install-lib: lib
 	$(LIBTOOL) --mode=install cp libldns.la $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
 
-uninstall-lib:	
+uninstall-lib:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libldns.la
 	test ! -d $(DESTDIR)$(libdir) || rmdir -p $(DESTDIR)$(libdir) || echo "ok, dir already gone"
 
@@ -395,7 +395,7 @@ install-pyldns: @PYLDNS@
 	$(LIBTOOL) --mode=install cp _ldns.la $(DESTDIR)$(python_site)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(python_site)
 
-uninstall-pyldns:	
+uninstall-pyldns:
 	rm -f $(DESTDIR)$(python_site)/ldns/*
 	test ! -d $(DESTDIR)$(python_site)/ldns || rmdir $(DESTDIR)$(python_site)/ldns || echo "ok, dir already gone"
 
@@ -450,7 +450,7 @@ docclean:
 	rm -f doc/ldns_manpages
 
 distclean: realclean
-	rm -fr autom4te.cache 
+	rm -fr autom4te.cache
 	rm -f config.guess config.sub configure ltmain.sh ldns/config.h.in
 
 ## No need for changes here
@@ -931,6 +931,14 @@ examples/ldns-signzone.lo examples/ldns-signzone.o: $(srcdir)/examples/ldns-sign
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
  $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+examples/ldns-sign-special.lo examples/ldns-sign-special.o: $(srcdir)/examples/ldns-sign-special.c ldns/config.h $(srcdir)/ldns/ldns.h \
+ ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
+ $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
+ $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h \
+ $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
+ $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
+ $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-test-edns.lo examples/ldns-test-edns.o: $(srcdir)/examples/ldns-test-edns.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -1094,5 +1102,6 @@ examples/ldns-dane: examples/ldns-dane.lo examples/ldns-dane.o $(LIB)
 examples/ldns-nsec3-hash: examples/ldns-nsec3-hash.lo examples/ldns-nsec3-hash.o $(LIB)
 examples/ldns-revoke: examples/ldns-revoke.lo examples/ldns-revoke.o $(LIB)
 examples/ldns-signzone: examples/ldns-signzone.lo examples/ldns-signzone.o $(LIB)
+examples/ldns-sign-special: examples/ldns-sign-special.lo examples/ldns-sign-special.o $(LIB)
 examples/ldns-verify-zone: examples/ldns-verify-zone.lo examples/ldns-verify-zone.o $(LIB)
 examples/ldns-testns: examples/ldns-testns.lo examples/ldns-testns.o examples/ldns-testpkts.lo examples/ldns-testpkts.o  $(LIB)
