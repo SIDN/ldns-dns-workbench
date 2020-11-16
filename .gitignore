@@ -140,6 +140,9 @@
 /examples/ldns-zsplit
 /examples/ldns-zsplit.lo
 /examples/ldns-zsplit.o
+/examples/ldns-3597
+/examples/ldns-3597.lo
+/examples/ldns-3597.o
 /examples/ldnsd
 /examples/ldnsd.lo
 /examples/ldnsd.o
