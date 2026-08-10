@@ -1,5 +1,5 @@
 /*
- *
+ * 
  * keys.h
  *
  * priv key definitions
@@ -16,7 +16,7 @@
  *
  * Addendum to \ref dnssec.h, this module contains key and algorithm definitions and functions.
  */
-
+ 
 
 #ifndef LDNS_KEYS_H
 #define LDNS_KEYS_H
@@ -173,7 +173,7 @@ struct ldns_struct_key {
 typedef struct ldns_struct_key ldns_key;
 
 /**
- * Same as rr_list, but now for keys
+ * Same as rr_list, but now for keys 
  */
 struct ldns_struct_key_list
 {
@@ -189,7 +189,7 @@ typedef struct ldns_struct_key_list ldns_key_list;
  */
 ldns_key_list *ldns_key_list_new(void);
 
-/**
+/** 
  * Creates a new empty key structure
  * \return a new ldns_key * structure
  */
@@ -205,7 +205,7 @@ ldns_key *ldns_key_new(void);
 ldns_key *ldns_key_new_frm_algorithm(ldns_signing_algorithm a, uint16_t size);
 
 /**
- * Creates a new priv key based on the
+ * Creates a new priv key based on the 
  * contents of the file pointed by fp.
  *
  * The file should be in Private-key-format v1.x.
@@ -217,7 +217,7 @@ ldns_key *ldns_key_new_frm_algorithm(ldns_signing_algorithm a, uint16_t size);
 ldns_status ldns_key_new_frm_fp(ldns_key **k, FILE *fp);
 
 /**
- * Creates a new private key based on the
+ * Creates a new private key based on the 
  * contents of the file pointed by fp
  *
  * The file should be in Private-key-format v1.x.
@@ -350,7 +350,7 @@ void ldns_key_assign_rsa_key(ldns_key *k, RSA *r);
  */
 void ldns_key_assign_dsa_key(ldns_key *k, DSA *d);
 
-/**
+/** 
  * Get the PKEY id for GOST, loads GOST into openssl as a side effect.
  * Only available if GOST is compiled into the library and openssl.
  * \return the gost id for EVP_CTX creation.
@@ -371,9 +371,9 @@ void ldns_key_set_hmac_key(ldns_key *k, unsigned char *hmac);
 /**
  * Set the key id data. This is used if the key points to
  * some externally stored key data
- *
+ * 
  * Only the pointer is set, the data there is not copied,
- * and must be freed manually; ldns_key_deep_free() does
+ * and must be freed manually; ldns_key_deep_free() does 
  * *not* free this data
  * \param[in] key the key
  * \param[in] external_key key id data
@@ -429,12 +429,12 @@ void ldns_key_set_flags(ldns_key *k, uint16_t flags);
  */
 void ldns_key_list_set_key_count(ldns_key_list *key, size_t count);
 
-/**
+/**     
  * pushes a key to a keylist
- * \param[in] key_list the key_list to push to
- * \param[in] key the key to push
+ * \param[in] key_list the key_list to push to 
+ * \param[in] key the key to push 
  * \return false on error, otherwise true
- */
+ */      
 bool ldns_key_list_push_key(ldns_key_list *key_list, ldns_key *key);
 
 /**
@@ -555,14 +555,14 @@ ldns_key_list_set_use(ldns_key_list *keys, bool v);
  */
 uint16_t ldns_key_flags(const ldns_key *k);
 
-/**
+/**     
  * pops the last rr from a keylist
  * \param[in] key_list the rr_list to pop from
  * \return NULL if nothing to pop. Otherwise the popped RR
  */
 ldns_key *ldns_key_list_pop_key(ldns_key_list *key_list);
 
-/**
+/** 
  * converts a ldns_key to a public key rr
  * If the key data exists at an external point, the corresponding
  * rdata field must still be added with ldns_rr_rdf_push() to the
@@ -575,7 +575,7 @@ ldns_rr *ldns_key2rr(const ldns_key *k);
 
 /**
  * print a private key to the file output
- *
+ * 
  * \param[in] output the FILE descriptor where to print to
  * \param[in] k the ldns_key to print
  */
@@ -615,7 +615,7 @@ ldns_rr * ldns_read_anchor_file(const char *filename);
  * (without the .key or .private)
  * The memory for this is allocated by this function,
  * and should be freed by the caller
- *
+ * 
  * \param[in] key the key to get the file name from
  * \returns A string containing the file base name
  */
