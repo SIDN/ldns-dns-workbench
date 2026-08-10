@@ -72,15 +72,15 @@ LINTFLAGS       += -D"__BEGIN_DECLS=" -D"__ssize_t=ssize_t" -D"__intptr_t=intptr
 LINTFLAGS       += -D"_RuneLocale=int"
 DEPFLAG		= @DEPFLAG@
 
-INSTALL		= $(srcdir)/install-sh
+INSTALL		= $(srcdir)/install-sh 
 
 LIBLOBJS	= $(LIBOBJS:.o=.lo)
-LDNS_LOBJS	= buffer.lo dane.lo dname.lo dnssec.lo dnssec_sign.lo dnssec_verify.lo dnssec_zone.lo duration.lo error.lo higher.lo host2str.lo host2wire.lo keys.lo net.lo packet.lo parse.lo radix.lo rbtree.lo rdata.lo resolver.lo rr.lo rr_functions.lo sha1.lo sha2.lo str2host.lo tsig.lo update.lo util.lo wire2host.lo zone.lo
+LDNS_LOBJS	= buffer.lo dane.lo dname.lo dnssec.lo dnssec_sign.lo dnssec_verify.lo dnssec_zone.lo duration.lo error.lo higher.lo host2str.lo host2wire.lo keys.lo net.lo packet.lo parse.lo radix.lo rbtree.lo rdata.lo resolver.lo rr.lo rr_functions.lo sha1.lo sha2.lo str2host.lo tsig.lo update.lo util.lo wire2host.lo zone.lo 
 LDNS_LOBJS_EX	= ^linktest\.c$$
 LDNS_ALL_LOBJS	= $(LDNS_LOBJS) $(LIBLOBJS)
 LIB		= libldns.la
 
-LDNS_HEADERS	= buffer.h dane.h dname.h dnssec.h dnssec_sign.h dnssec_verify.h dnssec_zone.h duration.h error.h higher.h host2str.h host2wire.h keys.h ldns.h packet.h parse.h radix.h rbtree.h rdata.h resolver.h rr_functions.h rr.h sha1.h sha2.h str2host.h tsig.h update.h wire2host.h zone.h
+LDNS_HEADERS	= buffer.h dane.h dname.h dnssec.h dnssec_sign.h dnssec_verify.h dnssec_zone.h duration.h error.h higher.h host2str.h host2wire.h keys.h ldns.h packet.h parse.h radix.h rbtree.h rdata.h resolver.h rr_functions.h rr.h sha1.h sha2.h str2host.h tsig.h update.h wire2host.h zone.h 
 LDNS_HEADERS_EX	= ^config\.h|common\.h|util\.h|net\.h$$
 LDNS_HEADERS_GEN= common.h util.h net.h
 
@@ -221,7 +221,7 @@ uninstall-examples:
 	test ! -d $(DESTDIR)$(bindir) || rmdir -p $(DESTDIR)$(bindir) || : ;
 
 clean-examples:
-	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_PROGS)
+	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_PROGS) 
 	$(LIBTOOL) --mode clean rm -f $(TESTNS) $(LDNS_DPA) $(LDNS_DANE) $(EX_SSL_PROGS)
 	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_LOBJS)
 	$(LIBTOOL) --mode clean rm -f examples/ldns-dane.1 examples/ldns-verify-zone.1
@@ -252,7 +252,7 @@ doxygen:
 doc: manpages $(doxygen)
 	@$(INSTALL) -d doc
 
-manpages: $(srcdir)/doc/function_manpages
+manpages: $(srcdir)/doc/function_manpages 
 	@$(INSTALL) -d doc/man/man3
 	@if [ -f $(srcdir)/doc/man/man3/ldns_rr.3 ] ; \
 	then \
@@ -274,7 +274,7 @@ manpages: $(srcdir)/doc/function_manpages
 			| grep -v ^doxygen | grep -v ^cat  > doc/ldns_manpages; \
 	fi
 
-manpage-create-errors: $(srcdir)/doc/function_manpages
+manpage-create-errors: $(srcdir)/doc/function_manpages 
 	@$(INSTALL) -d doc
 	@cat $(srcdir)/ldns/*.h \
 	| $(srcdir)/doc/doxyparse.pl -e \
@@ -300,7 +300,7 @@ $(pywrapdir)/ldns_wrapper.c: $(PYLDNS_I_FILES) ldns/config.h
 ldns_wrapper.lo: $(pywrapdir)/ldns_wrapper.c ldns/config.h
 	$(COMP_LIB) -I./include/ldns $(LIBSSL_CPPFLAGS) $(PYTHON_CPPFLAGS) $(PYTHON_X_CFLAGS) -c $(pywrapdir)/ldns_wrapper.c -o $@
 
-_ldns.la: ldns_wrapper.lo libldns.la
+_ldns.la: ldns_wrapper.lo libldns.la 
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(PYTHON_CFLAGS) $(LDFLAGS) $(PYTHON_LDFLAGS) -module -version-info $(version_info) -no-undefined -o $@ ldns_wrapper.lo -rpath $(python_site) -L. -L.libs -lldns $(LIBS)
 
 $(p5_dns_ldns_dir)/Makefile: $(p5_dns_ldns_dir)/Makefile.PL
@@ -385,7 +385,7 @@ install-lib: lib
 	$(LIBTOOL) --mode=install cp libldns.la $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
 
-uninstall-lib:
+uninstall-lib:	
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libldns.la
 	test ! -d $(DESTDIR)$(libdir) || rmdir -p $(DESTDIR)$(libdir) || echo "ok, dir already gone"
 
@@ -395,7 +395,7 @@ install-pyldns: @PYLDNS@
 	$(LIBTOOL) --mode=install cp _ldns.la $(DESTDIR)$(python_site)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(python_site)
 
-uninstall-pyldns:
+uninstall-pyldns:	
 	rm -f $(DESTDIR)$(python_site)/ldns/*
 	test ! -d $(DESTDIR)$(python_site)/ldns || rmdir $(DESTDIR)$(python_site)/ldns || echo "ok, dir already gone"
 
@@ -450,7 +450,7 @@ docclean:
 	rm -f doc/ldns_manpages
 
 distclean: realclean
-	rm -fr autom4te.cache
+	rm -fr autom4te.cache 
 	rm -f config.guess config.sub configure ltmain.sh ldns/config.h.in
 
 ## No need for changes here
