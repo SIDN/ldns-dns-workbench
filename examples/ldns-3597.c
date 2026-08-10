@@ -34,6 +34,28 @@ usage() {
     printf("Example: ldns-read-zone -f - myzone.zone | ldns-3597 MX AAAA PTR\n");
 }
 
+// Adds the given type to the list to convert
+void
+add_convert_type(ldns_rr_type* types, size_t* len, ldns_rr_type type) {
+    if (*len < MAX_LEN) {
+        types[(*len)++] = type;
+    } else {
+        printf("Error: too many conversion types requested\n");
+    }
+}
+
+// Returns 1 if the given type is in the given list-to-convert
+int
+is_convert_type(ldns_rr_type* types, size_t len, ldns_rr_type type) {
+    size_t i;
+    for (i=0; i < len; ++i) {
+        if (types[i] == type) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // Print an rr in its normal presentation format
 void
 print_normal(FILE* out, ldns_rr* rr) {
@@ -127,28 +149,6 @@ print_nsec_as_3597(FILE* out, ldns_rr_type* convert_types,
         }
     }
     print_normal(out, rr);
-}
-
-// Adds the given type to the list to convert
-void
-add_convert_type(ldns_rr_type* types, size_t* len, ldns_rr_type type) {
-    if (*len < MAX_LEN) {
-        types[(*len)++] = type;
-    } else {
-        printf("Error: too many conversion types requested\n");
-    }
-}
-
-// Returns 1 if the given type is in the given list-to-convert
-int
-is_convert_type(ldns_rr_type* types, size_t len, ldns_rr_type type) {
-    size_t i;
-    for (i=0; i < len; ++i) {
-        if (types[i] == type) {
-            return 1;
-        }
-    }
-    return 0;
 }
 
 int
