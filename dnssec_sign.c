@@ -24,6 +24,9 @@
 #endif
 #endif /* HAVE_SSL */
 
+#define LDNS_SIGN_WITH_ZONEMD ( LDNS_SIGN_WITH_ZONEMD_SIMPLE_SHA384 \
+                              | LDNS_SIGN_WITH_ZONEMD_SIMPLE_SHA512 )
+
 ldns_rr *
 ldns_create_empty_rrsig(const ldns_rr_list *rrset,
                         const ldns_key *current_key)
@@ -331,18 +334,11 @@ ldns_sign_public(ldns_rr_list *rrset, ldns_key_list *keys)
 	return signatures;
 }
 
-/**
- * Sign data with DSA
- *
- * \param[in] to_sign The ldns_buffer containing raw data that is
- *                    to be signed
- * \param[in] key The DSA key structure to sign with
- * \return ldns_rdf for the RRSIG ldns_rr
- */
 ldns_rdf *
 ldns_sign_public_dsa(ldns_buffer *to_sign, DSA *key)
 {
 #ifdef USE_DSA
+	unsigned char md[EVP_MAX_MD_SIZE];
 	unsigned char *sha1_hash;
 	ldns_rdf *sigdata_rdf;
 	ldns_buffer *b64sig;
@@ -358,7 +354,7 @@ ldns_sign_public_dsa(ldns_buffer *to_sign, DSA *key)
 	}
 
 	sha1_hash = SHA1((unsigned char*)ldns_buffer_begin(to_sign),
-				  ldns_buffer_position(to_sign), NULL);
+				  ldns_buffer_position(to_sign), md);
 	if (!sha1_hash) {
 		ldns_buffer_free(b64sig);
 		return NULL;
@@ -419,11 +415,14 @@ ldns_pkey_is_ecdsa(EVP_PKEY* pkey)
 {
         EC_KEY* ec;
         const EC_GROUP* g;
-#ifdef HAVE_EVP_PKEY_BASE_ID
+#ifdef HAVE_EVP_PKEY_GET_BASE_ID
+        if(EVP_PKEY_get_base_id(pkey) != EVP_PKEY_EC)
+                return 0;
+#elif defined(HAVE_EVP_PKEY_BASE_ID)
         if(EVP_PKEY_base_id(pkey) != EVP_PKEY_EC)
                 return 0;
 #else
-        if(EVP_PKEY_type(key->type) != EVP_PKEY_EC)
+        if(EVP_PKEY_type(pkey->type) != EVP_PKEY_EC)
                 return 0;
 #endif
         ec = EVP_PKEY_get1_EC_KEY(pkey);
@@ -535,7 +534,9 @@ ldns_sign_public_evp(ldns_buffer *to_sign,
 #ifdef USE_DSA
 #ifndef S_SPLINT_S
 	/* unfortunately, OpenSSL output is different from DNS DSA format */
-# ifdef HAVE_EVP_PKEY_BASE_ID
+# ifdef HAVE_EVP_PKEY_GET_BASE_ID
+	if (EVP_PKEY_get_base_id(key) == EVP_PKEY_DSA) {
+# elif defined(HAVE_EVP_PKEY_BASE_ID)
 	if (EVP_PKEY_base_id(key) == EVP_PKEY_DSA) {
 # else
 	if (EVP_PKEY_type(key->type) == EVP_PKEY_DSA) {
@@ -547,7 +548,9 @@ ldns_sign_public_evp(ldns_buffer *to_sign,
 #endif
 #if defined(USE_ECDSA)
 	if(
-#  ifdef HAVE_EVP_PKEY_BASE_ID
+#  ifdef HAVE_EVP_PKEY_GET_BASE_ID
+		EVP_PKEY_get_base_id(key)
+#  elif defined(HAVE_EVP_PKEY_BASE_ID)
 		EVP_PKEY_base_id(key)
 #  else
 		EVP_PKEY_type(key->type)
@@ -575,6 +578,7 @@ ldns_sign_public_evp(ldns_buffer *to_sign,
 ldns_rdf *
 ldns_sign_public_rsasha1(ldns_buffer *to_sign, RSA *key)
 {
+	unsigned char md[EVP_MAX_MD_SIZE];
 	unsigned char *sha1_hash;
 	unsigned int siglen;
 	ldns_rdf *sigdata_rdf;
@@ -588,7 +592,7 @@ ldns_sign_public_rsasha1(ldns_buffer *to_sign, RSA *key)
 	}
 
 	sha1_hash = SHA1((unsigned char*)ldns_buffer_begin(to_sign),
-				  ldns_buffer_position(to_sign), NULL);
+				  ldns_buffer_position(to_sign), md);
 	if (!sha1_hash) {
 		ldns_buffer_free(b64sig);
 		return NULL;
@@ -611,6 +615,7 @@ ldns_sign_public_rsasha1(ldns_buffer *to_sign, RSA *key)
 ldns_rdf *
 ldns_sign_public_rsamd5(ldns_buffer *to_sign, RSA *key)
 {
+	unsigned char md[EVP_MAX_MD_SIZE];
 	unsigned char *md5_hash;
 	unsigned int siglen;
 	ldns_rdf *sigdata_rdf;
@@ -622,7 +627,7 @@ ldns_sign_public_rsamd5(ldns_buffer *to_sign, RSA *key)
 	}
 
 	md5_hash = MD5((unsigned char*)ldns_buffer_begin(to_sign),
-				ldns_buffer_position(to_sign), NULL);
+				ldns_buffer_position(to_sign), md);
 	if (!md5_hash) {
 		ldns_buffer_free(b64sig);
 		return NULL;
@@ -661,7 +666,7 @@ ldns_dnssec_addresses_on_glue_list(
 						/* ldns_rr_list_push_rr()
 						 * returns false when unable
 						 * to increase the capacity
-						 * of the ldsn_rr_list
+						 * of the ldns_rr_list
 						 */
 					}
 				}
@@ -672,20 +677,6 @@ ldns_dnssec_addresses_on_glue_list(
 	return LDNS_STATUS_OK;
 }
 
-/**
- * Marks the names in the zone that are occluded. Those names will be skipped
- * when walking the tree with the ldns_dnssec_name_node_next_nonglue()
- * function. But watch out! Names that are partially occluded (like glue with
- * the same name as the delegation) will not be marked and should specifically 
- * be taken into account separately.
- *
- * When glue_list is given (not NULL), in the process of marking the names, all
- * glue resource records will be pushed to that list, even glue at delegation names.
- *
- * \param[in] zone the zone in which to mark the names
- * \param[in] glue_list the list to which to push the glue rrs
- * \return LDNS_STATUS_OK on success, an error code otherwise
- */
 ldns_status
 ldns_dnssec_zone_mark_and_get_glue(ldns_dnssec_zone *zone, 
 	ldns_rr_list *glue_list)
@@ -697,7 +688,7 @@ ldns_dnssec_zone_mark_and_get_glue(ldns_dnssec_zone *zone,
 	/* When the cut is caused by a delegation, below_delegation will be 1.
 	 * When caused by a DNAME, below_delegation will be 0.
 	 */
-	int below_delegation = -1; /* init suppresses comiler warning */
+	int below_delegation = -1; /* init suppresses compiler warning */
 	ldns_status s;
 
 	if (!zone || !zone->names) {
@@ -719,7 +710,7 @@ ldns_dnssec_zone_mark_and_get_glue(ldns_dnssec_zone *zone,
 			 * FIXME! If there are labels in between the SOA and
 			 * the cut, going from the authoritative space (below
 			 * the SOA) up into occluded space again, will not be
-			 * detected with the contruct below!
+			 * detected with the construct below!
 			 */
 			if (ldns_dname_is_subdomain(owner, cut) &&
 					!ldns_dnssec_rrsets_contains_type(
@@ -765,16 +756,6 @@ ldns_dnssec_zone_mark_and_get_glue(ldns_dnssec_zone *zone,
 	return LDNS_STATUS_OK;
 }
 
-/**
- * Marks the names in the zone that are occluded. Those names will be skipped
- * when walking the tree with the ldns_dnssec_name_node_next_nonglue()
- * function. But watch out! Names that are partially occluded (like glue with
- * the same name as the delegation) will not be marked and should specifically 
- * be taken into account separately.
- *
- * \param[in] zone the zone in which to mark the names
- * \return LDNS_STATUS_OK on success, an error code otherwise
- */
 ldns_status
 ldns_dnssec_zone_mark_glue(ldns_dnssec_zone *zone)
 {
@@ -818,17 +799,24 @@ ldns_dnssec_zone_create_nsecs(ldns_dnssec_zone *zone,
 	uint32_t nsec_ttl;
 	ldns_dnssec_rrsets *soa;
 
-	/* the TTL of NSEC rrs should be set to the minimum TTL of
-	 * the zone SOA (RFC4035 Section 2.3)
+	/* The TTL value for any NSEC RR SHOULD be the same TTL value as the
+	 * lesser of the MINIMUM field of the SOA record and the TTL of the SOA
+	 * itself. This matches the definition of the TTL for negative
+	 * responses in [RFC2308]. (draft-ietf-dnsop-nsec-ttl-01 update of
+	 * RFC4035 Section 2.3)
 	 */
 	soa = ldns_dnssec_name_find_rrset(zone->soa, LDNS_RR_TYPE_SOA);
 
 	/* did the caller actually set it? if not,
 	 * fall back to default ttl
 	 */
-	if (soa && soa->rrs && soa->rrs->rr
-			&& (ldns_rr_rdf(soa->rrs->rr, 6) != NULL)) {
-		nsec_ttl = ldns_rdf2native_int32(ldns_rr_rdf(soa->rrs->rr, 6));
+	if (soa && soa->rrs && soa->rrs->rr) {
+		ldns_rr  *soa_rr  = soa->rrs->rr;
+		ldns_rdf *min_rdf = ldns_rr_rdf(soa_rr, 6);
+
+		nsec_ttl = min_rdf == NULL
+		       || ldns_rr_ttl(soa_rr) < ldns_rdf2native_int32(min_rdf)
+		        ? ldns_rr_ttl(soa_rr) : ldns_rdf2native_int32(min_rdf);
 	} else {
 		nsec_ttl = LDNS_DEFAULT_TTL;
 	}
@@ -912,17 +900,24 @@ ldns_dnssec_zone_create_nsec3s_mkmap(ldns_dnssec_zone *zone,
 		return LDNS_STATUS_ERR;
 	}
 
-	/* the TTL of NSEC rrs should be set to the minimum TTL of
-	 * the zone SOA (RFC4035 Section 2.3)
+	/* The TTL value for any NSEC RR SHOULD be the same TTL value as the
+	 * lesser of the MINIMUM field of the SOA record and the TTL of the SOA
+	 * itself. This matches the definition of the TTL for negative
+	 * responses in [RFC2308]. (draft-ietf-dnsop-nsec-ttl-01 update of
+	 * RFC4035 Section 2.3)
 	 */
 	soa = ldns_dnssec_name_find_rrset(zone->soa, LDNS_RR_TYPE_SOA);
 
 	/* did the caller actually set it? if not,
 	 * fall back to default ttl
 	 */
-	if (soa && soa->rrs && soa->rrs->rr
-			&& ldns_rr_rdf(soa->rrs->rr, 6) != NULL) {
-		nsec_ttl = ldns_rdf2native_int32(ldns_rr_rdf(soa->rrs->rr, 6));
+	if (soa && soa->rrs && soa->rrs->rr) {
+		ldns_rr  *soa_rr  = soa->rrs->rr;
+		ldns_rdf *min_rdf = ldns_rr_rdf(soa_rr, 6);
+
+		nsec_ttl = min_rdf == NULL
+		       || ldns_rr_ttl(soa_rr) < ldns_rdf2native_int32(min_rdf)
+		        ? ldns_rr_ttl(soa_rr) : ldns_rdf2native_int32(min_rdf);
 	} else {
 		nsec_ttl = LDNS_DEFAULT_TTL;
 	}
@@ -1147,17 +1142,22 @@ ldns_key_list_filter_for_dnskey(ldns_key_list *key_list, int flags)
 	if (!ldns_key_list_key_count(key_list))
 		return;
 
+	/* Mark all KSKs */
 	for (i = 0; i < ldns_key_list_key_count(key_list); i++) {
 		key = ldns_key_list_key(key_list, i);
-		if ((ldns_key_flags(key) & LDNS_KEY_SEP_KEY) && !saw_ksk)
-			saw_ksk = ldns_key_algorithm(key);
-		algos[ldns_key_algorithm(key)] = true;
+		if ((ldns_key_flags(key) & LDNS_KEY_SEP_KEY)) {
+			if (!saw_ksk)
+				saw_ksk = ldns_key_algorithm(key);
+			algos[ldns_key_algorithm(key)] = true;
+		}
 	}
 	if (!saw_ksk)
-		return;
-	else
-		algos[saw_ksk] = 0;
+		return; /* No KSKs means sign using all ZSKs */
 
+	/* Deselect the ZSKs so they do not sign DNSKEY RRs.
+	 * Except with the LDNS_SIGN_WITH_ALL_ALGORITHMS flag, then use it,
+	 * but only if it has an algorithm for which there is no KSK
+	 */
 	for (i =0; i < ldns_key_list_key_count(key_list); i++) {
 		key = ldns_key_list_key(key_list, i);
 		if (!(ldns_key_flags(key) & LDNS_KEY_SEP_KEY)) {
@@ -1165,15 +1165,15 @@ ldns_key_list_filter_for_dnskey(ldns_key_list *key_list, int flags)
 			 * Still use it if it has a unique algorithm though!
 			 */
 			if ((flags & LDNS_SIGN_WITH_ALL_ALGORITHMS) &&
-			    algos[ldns_key_algorithm(key)])
-				algos[ldns_key_algorithm(key)] = false;
+			    !algos[ldns_key_algorithm(key)])
+				algos[ldns_key_algorithm(key)] = true;
 			else
 				ldns_key_set_use(key, 0);
 		}
 	}
 }
 
-/** If there are no ZSKs use KSK as ZSK */
+/** If there are no ZSKs use KSKs as ZSK too */
 static void
 ldns_key_list_filter_for_non_dnskey(ldns_key_list *key_list, int flags)
 {
@@ -1189,17 +1189,22 @@ ldns_key_list_filter_for_non_dnskey(ldns_key_list *key_list, int flags)
 	if (!ldns_key_list_key_count(key_list))
 		return;
 
+	/* Mark all ZSKs */
 	for (i = 0; i < ldns_key_list_key_count(key_list); i++) {
 		key = ldns_key_list_key(key_list, i);
-		if (!(ldns_key_flags(key) & LDNS_KEY_SEP_KEY) && !saw_zsk)
-			saw_zsk = ldns_key_algorithm(key);
-		algos[ldns_key_algorithm(key)] = true;
+		if (!(ldns_key_flags(key) & LDNS_KEY_SEP_KEY)) {
+			if (!saw_zsk)
+				saw_zsk = ldns_key_algorithm(key);
+			algos[ldns_key_algorithm(key)] = true;
+		}
 	}
 	if (!saw_zsk)
-		return;
-	else
-		algos[saw_zsk] = 0;
+		return; /* No ZSKs means sign using all KSKs */
 
+	/* Deselect the KSKs so they do not sign non DNSKEY RRs.
+	 * Except with the LDNS_SIGN_WITH_ALL_ALGORITHMS flag, then use it,
+	 * but only if it has an algorithm for which there is no ZSK
+	 */
 	for (i = 0; i < ldns_key_list_key_count(key_list); i++) {
 		key = ldns_key_list_key(key_list, i);
 		if((ldns_key_flags(key) & LDNS_KEY_SEP_KEY)) {
@@ -1207,8 +1212,8 @@ ldns_key_list_filter_for_non_dnskey(ldns_key_list *key_list, int flags)
 			 * Still use it if it has a unique algorithm though!
 			 */
 			if ((flags & LDNS_SIGN_WITH_ALL_ALGORITHMS) &&
-			    algos[ldns_key_algorithm(key)])
-				algos[ldns_key_algorithm(key)] = false;
+			    !algos[ldns_key_algorithm(key)])
+				algos[ldns_key_algorithm(key)] = true;
 			else
 				ldns_key_set_use(key, 0);
 		}
@@ -1371,6 +1376,8 @@ ldns_dnssec_zone_sign(ldns_dnssec_zone *zone,
 	return ldns_dnssec_zone_sign_flg(zone, new_rrs, key_list, func, arg, 0);
 }
 
+ldns_status dnssec_zone_equip_zonemd(ldns_dnssec_zone *zone,
+		ldns_rr_list *new_rrs, ldns_key_list *key_list, int flags);
 ldns_status
 ldns_dnssec_zone_sign_flg(ldns_dnssec_zone *zone,
 				  ldns_rr_list *new_rrs,
@@ -1380,25 +1387,46 @@ ldns_dnssec_zone_sign_flg(ldns_dnssec_zone *zone,
 				  int flags)
 {
 	ldns_status result = LDNS_STATUS_OK;
+	ldns_dnssec_rrsets zonemd_rrset;
+	bool zonemd_added = false;
 
 	if (!zone || !new_rrs || !key_list) {
 		return LDNS_STATUS_ERR;
 	}
+	if (flags & LDNS_SIGN_WITH_ZONEMD) {
+		ldns_dnssec_rrsets **rrsets_ref = &zone->soa->rrsets;
 
+		while (*rrsets_ref
+		   && (*rrsets_ref)->type < LDNS_RR_TYPE_ZONEMD)
+			rrsets_ref = &(*rrsets_ref)->next;
+		if (!*rrsets_ref
+		||  (*rrsets_ref)->type > LDNS_RR_TYPE_ZONEMD) {
+			zonemd_rrset.rrs = NULL;
+			zonemd_rrset.type = LDNS_RR_TYPE_ZONEMD;
+			zonemd_rrset.signatures = NULL;
+			zonemd_rrset.next = *rrsets_ref;
+			*rrsets_ref = &zonemd_rrset;
+			zonemd_added = true;
+		}
+	}
 	/* zone is already sorted */
 	result = ldns_dnssec_zone_mark_glue(zone);
 	if (result != LDNS_STATUS_OK) {
 		return result;
 	}
-
 	/* check whether we need to add nsecs */
-	if (zone->names && !((ldns_dnssec_name *)zone->names->root->data)->nsec) {
+	if ((flags & LDNS_SIGN_NO_KEYS_NO_NSECS)
+	&&  ldns_key_list_key_count(key_list) < 1)
+		; /* pass */
+
+	else if (zone->names
+	     && !((ldns_dnssec_name *)zone->names->root->data)->nsec) {
+
 		result = ldns_dnssec_zone_create_nsecs(zone, new_rrs);
 		if (result != LDNS_STATUS_OK) {
 			return result;
 		}
 	}
-
 	result = ldns_dnssec_zone_create_rrsigs_flg(zone,
 					new_rrs,
 					key_list,
@@ -1406,7 +1434,18 @@ ldns_dnssec_zone_sign_flg(ldns_dnssec_zone *zone,
 					arg,
 					flags);
 
-	return result;
+	if (zonemd_added) {
+		ldns_dnssec_rrsets **rrsets_ref
+		    = &zone->soa->rrsets;
+
+		while (*rrsets_ref
+		   && (*rrsets_ref)->type < LDNS_RR_TYPE_ZONEMD)
+			rrsets_ref = &(*rrsets_ref)->next;
+		*rrsets_ref = zonemd_rrset.next;
+	}
+	return flags & LDNS_SIGN_WITH_ZONEMD
+	     ? dnssec_zone_equip_zonemd(zone, new_rrs, key_list, flags)
+	     : result;
 }
 
 ldns_status
@@ -1442,6 +1481,8 @@ ldns_dnssec_zone_sign_nsec3_flg_mkmap(ldns_dnssec_zone *zone,
 {
 	ldns_rr *nsec3, *nsec3param;
 	ldns_status result = LDNS_STATUS_OK;
+	bool zonemd_added = false;
+	ldns_dnssec_rrsets zonemd_rrset;
 
 	/* zone is already sorted */
 	result = ldns_dnssec_zone_mark_glue(zone);
@@ -1460,7 +1501,13 @@ ldns_dnssec_zone_sign_nsec3_flg_mkmap(ldns_dnssec_zone *zone,
 		}
 
 		nsec3 = ((ldns_dnssec_name *)zone->names->root->data)->nsec;
-		if (nsec3 && ldns_rr_get_type(nsec3) == LDNS_RR_TYPE_NSEC3) {
+
+		/* check whether we need to add nsecs */
+		if ((signflags & LDNS_SIGN_NO_KEYS_NO_NSECS)
+		&&  ldns_key_list_key_count(key_list) < 1)
+			; /* pass */
+
+		else if (nsec3 && ldns_rr_get_type(nsec3) == LDNS_RR_TYPE_NSEC3) {
 			/* no need to recreate */
 		} else {
 			if (!ldns_dnssec_zone_find_rrset(zone,
@@ -1487,6 +1534,23 @@ ldns_dnssec_zone_sign_nsec3_flg_mkmap(ldns_dnssec_zone *zone,
 				}
 				ldns_rr_list_push_rr(new_rrs, nsec3param);
 			}
+			if (signflags & LDNS_SIGN_WITH_ZONEMD) {
+				ldns_dnssec_rrsets **rrsets_ref
+				    = &zone->soa->rrsets;
+
+				while (*rrsets_ref
+				   && (*rrsets_ref)->type < LDNS_RR_TYPE_ZONEMD)
+					rrsets_ref = &(*rrsets_ref)->next;
+				if (!*rrsets_ref
+				||  (*rrsets_ref)->type > LDNS_RR_TYPE_ZONEMD) {
+					zonemd_rrset.rrs = NULL;
+					zonemd_rrset.type = LDNS_RR_TYPE_ZONEMD;
+					zonemd_rrset.signatures = NULL;
+					zonemd_rrset.next = *rrsets_ref;
+					*rrsets_ref = &zonemd_rrset;
+					zonemd_added = true;
+				}
+			}
 			result = ldns_dnssec_zone_create_nsec3s_mkmap(zone,
 											new_rrs,
 											algorithm,
@@ -1495,6 +1559,15 @@ ldns_dnssec_zone_sign_nsec3_flg_mkmap(ldns_dnssec_zone *zone,
 											salt_length,
 											salt,
 											map);
+			if (zonemd_added) {
+				ldns_dnssec_rrsets **rrsets_ref
+				    = &zone->soa->rrsets;
+
+				while (*rrsets_ref
+				   && (*rrsets_ref)->type < LDNS_RR_TYPE_ZONEMD)
+					rrsets_ref = &(*rrsets_ref)->next;
+				*rrsets_ref = zonemd_rrset.next;
+			}
 			if (result != LDNS_STATUS_OK) {
 				return result;
 			}
@@ -1507,8 +1580,12 @@ ldns_dnssec_zone_sign_nsec3_flg_mkmap(ldns_dnssec_zone *zone,
 						arg,
 						signflags);
 	}
+	if (result || !zone->names)
+		return result;
 
-	return result;
+	return signflags & LDNS_SIGN_WITH_ZONEMD
+	     ? dnssec_zone_equip_zonemd(zone, new_rrs, key_list, signflags)
+	     : result;
 }
 
 ldns_status

@@ -26,7 +26,7 @@
 static void 
 usage(char *prog)
 {
-	printf("Usage: %s [-v] [-i] [-d] [-c] [-u] [-s] [-e] "
+	printf("Usage: %s [-v] [-i] [-d] [-c] [-u] [-s] [-Z] [-e] "
 	       "<zonefile1> <zonefile2>\n", prog);
 	printf("       -i - print inserted\n");
 	printf("       -d - print deleted\n");
@@ -35,6 +35,7 @@ usage(char *prog)
 	printf("       -U - print unchanged records in changed names\n");
 	printf("       -a - print all differences (-i -d -c)\n");
 	printf("       -s - do not exclude SOA record from comparison\n");
+	printf("       -Z - exclude ZONEMD records from comparison\n");
 	printf("       -z - do not sort zones\n");
 	printf("       -e - exit with status 2 on changed zones\n");
 	printf("       -h - show usage and exit\n");
@@ -60,11 +61,11 @@ main(int argc, char **argv)
 	int		c;
 	bool		opt_deleted = false, opt_inserted  = false;
 	bool            opt_changed = false, opt_unchanged = false, opt_Unchanged = false;
-        bool		sort = true, inc_soa = false;
+        bool		sort = true, inc_soa = false, exc_zonemd = false;
 	bool		opt_exit_status = false;
 	char		op = 0;
 
-	while ((c = getopt(argc, argv, "ahvdicuUesz")) != -1) {
+	while ((c = getopt(argc, argv, "ahvdicuUesZz")) != -1) {
 		switch (c) {
 		case 'h':
 			usage(argv[0]);
@@ -82,6 +83,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			inc_soa = true;
+			break;
+		case 'Z':
+			exc_zonemd = true;
 			break;
 		case 'z':
 			sort = false;
@@ -133,7 +137,7 @@ main(int argc, char **argv)
 						  LDNS_RR_CLASS_IN, &line_nr1);
 	if (s != LDNS_STATUS_OK) {
 		fclose(fp1);
-		fprintf(stderr, "%s: %s at %d\n",
+		fprintf(stderr, "%s: %s at line %d\n",
 			   fn1,
 			   ldns_get_errorstr_by_id(s),
 			   line_nr1);
@@ -153,7 +157,7 @@ main(int argc, char **argv)
 	if (s != LDNS_STATUS_OK) {
 		ldns_zone_deep_free(z1);
 		fclose(fp2);
-		fprintf(stderr, "%s: %s at %d\n",
+		fprintf(stderr, "%s: %s at line %d\n",
 			   fn2,
 			   ldns_get_errorstr_by_id(s),
 			   line_nr2);
@@ -208,6 +212,18 @@ main(int argc, char **argv)
 	 * set the operator again.
 	 */
 	for (i = 0, j = 0; i < rrc1 || j < rrc2;) {
+		if (exc_zonemd) {
+			if (ldns_rr_get_type(ldns_rr_list_rr(rrl1, i))
+					== LDNS_RR_TYPE_ZONEMD) {
+				i += 1;
+				continue;
+			}
+			if (ldns_rr_get_type(ldns_rr_list_rr(rrl2, j))
+					== LDNS_RR_TYPE_ZONEMD) {
+				j += 1;
+				continue;
+			}
+		}
 		rr_cmp = 0;
 		if (i < rrc1 && j < rrc2) {
 			rr1 = ldns_rr_list_rr(rrl1, i);
@@ -232,7 +248,6 @@ main(int argc, char **argv)
 			rr_chg = rr_cmp = -1;
 		}
 		if (rr_cmp < 0) {
-			i++;
 			if ((rrx != NULL) && (ldns_dname_compare(ldns_rr_owner(rr1), 
 											 ldns_rr_owner(rrx)
 											 ) != 0)) {
@@ -254,8 +269,8 @@ main(int argc, char **argv)
 				printf("%c-", op);
 				ldns_rr_print(stdout, rr1);
 			}
+			i++;
 		} else if (rr_cmp > 0) {
-			j++;
 			if ((rrx != NULL) && (ldns_dname_compare(ldns_rr_owner(rr2),
 											 ldns_rr_owner(rrx)
 											 ) != 0)) {
@@ -277,9 +292,8 @@ main(int argc, char **argv)
 				printf("%c+", op);
 				ldns_rr_print(stdout, rr2);
 			}
-		} else {
-			i++;
 			j++;
+		} else {
 			if ((rrx != NULL) && (ldns_dname_compare(ldns_rr_owner(rr1),
 											 ldns_rr_owner(rrx)
 											 ) != 0)) {
@@ -294,6 +308,7 @@ main(int argc, char **argv)
 				      ldns_dname_compare(ldns_rr_owner(rr1), 
 					                 ldns_rr_owner(ldns_rr_list_rr(rrl1, k))) == 0
 				    ; k++);
+                                
 
 				for ( l = j + 1
 				    ; l < rrc2 &&
@@ -308,14 +323,14 @@ main(int argc, char **argv)
 					nc1 = k - i;
 					nc2 = l - j;
 					for ( k = i + 1, l = j + 1
-					    ; k < nc1 && l < nc2 &&
-					      ldns_rr_compare(ldns_rr_list_rr(rrl1, k),
-					                      ldns_rr_list_rr(rrl2, l)) == 0
+					    ; (k - i) < nc1 && (l - j) < nc2 &&
+							ldns_rr_compare(ldns_rr_list_rr(rrl1, k),
+							ldns_rr_list_rr(rrl2, l)) == 0
 					    ; k++, l++);
-					if (k < nc1) {
+					if ((k - i) < nc1) {
 						op = OP_CHG;
 						num_chg++;
-					} else {
+                                       } else {
 						op = OP_EQ;
 						num_eq++;
 					}
@@ -326,6 +341,8 @@ main(int argc, char **argv)
 				printf("%c=", op);
 				ldns_rr_print(stdout, rr1);
 			}
+			i++;
+			j++;
 		}
 	}
 

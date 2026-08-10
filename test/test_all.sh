@@ -22,6 +22,7 @@ then
 fi
 
 is_freebsd=$(uname -s 2>&1 | grep -i -c 'freebsd')
+is_macos=$(uname -s 2>&1 | grep -i -c 'darwin')
 test_tool_avail "dig"
 
 echo start the test at "$(date)" in "$(pwd)"
@@ -33,6 +34,11 @@ if [[ "$is_freebsd" -eq 0 ]]; then
     $TPKG -a ../.. fake 02-lint.tpkg
 fi
 
+# Test needs to bind to 127.0.0.2 which doesn't work on MacOS
+if [[ "$is_macos" -ne 0 ]]; then
+    $TPKG -a ../.. fake 21-match-response-with-query.tpkg
+fi
+
 $TPKG -a ../.. fake 07-compile-examples.tpkg
 $TPKG -a ../.. fake 16-compile-builddir.tpkg
 $TPKG -a ../.. fake 30-load-pyldns.tpkg
@@ -40,13 +46,22 @@ $TPKG -a ../.. fake 31-load-pyldnsx.tpkg
 $TPKG -a ../.. fake 32-unbound-regression.tpkg
 $TPKG -a ../.. fake 999-compile-nossl.tpkg
 command -v indent || $TPKG -a ../.. fake codingstyle.tpkg
+grep -q '^#define HAVE_SSL ' ../ldns/config.h || (
+	$TPKG -a ../.. fake 19-keygen.tpkg
+	$TPKG -a ../.. fake 20-sign-zone.tpkg
+	$TPKG -a ../.. fake 25-ZONEMD.tpkg
+)
 
+failed=0
 for tests in *.tpkg
 do
 	COMMAND="$TPKG -a ../.. exe $(basename "$tests")"
 	echo "$COMMAND"
 	$COMMAND
+	if [ $? -ne 0 ]; then ((failed=failed+1)); fi
 done 
 echo finished the test at "$(date)" in "$(pwd)"
 $TPKG report
 cd ..
+
+exit $failed

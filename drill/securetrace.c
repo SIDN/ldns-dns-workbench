@@ -137,7 +137,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 	ldns_rr_list *correct_key_list;
 	ldns_rr_list *trusted_ds_rrs;
 	bool new_keys_trusted = false;
-	ldns_rr_list *current_correct_keys;
+	ldns_rr_list *current_correct_keys = NULL;
 	ldns_rr_list *dataset;
 
 	ldns_rr_list *nsec_rrs = NULL;
@@ -291,7 +291,12 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 				/* trust glue? */
 				new_ns_addr = NULL;
 				if (ldns_dname_is_subdomain(pop, labels[i])) {
-					new_ns_addr = ldns_pkt_rr_list_by_name_and_type(local_p, pop, LDNS_RR_TYPE_A, LDNS_SECTION_ADDITIONAL);
+					if (ldns_resolver_ip6(res) == LDNS_RESOLV_INET6) {
+						new_ns_addr = ldns_pkt_rr_list_by_name_and_type(local_p, pop, LDNS_RR_TYPE_AAAA, LDNS_SECTION_ADDITIONAL);
+					} else {
+						/* If IPv4 is specified, or no IP version is specified, default to A record and use IPv4 */
+						new_ns_addr = ldns_pkt_rr_list_by_name_and_type(local_p, pop, LDNS_RR_TYPE_A, LDNS_SECTION_ADDITIONAL);
+					}
 				}
 				if (!new_ns_addr || ldns_rr_list_rr_count(new_ns_addr) == 0) {
 					new_ns_addr = ldns_get_rr_list_addr_by_name(res, pop, c, 0);
@@ -520,8 +525,8 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 							labels[i-1]);
 						printf(", but valid CNAME");
 					} else {
-						printf("[B] Unable to verify de"
-						       "nial of existence for ");
+						printf(BOGUS " Unable to verify "
+						       "denial of existence for ");
 						ldns_rdf_print(stdout,
 							labels[i-1]);
 						printf(", because of BOGUS CNAME");
@@ -644,7 +649,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 							printf(";; No DS for ");
 							ldns_rdf_print(stdout, labels[i - 1]);
 						} else {
-							printf("[B] Unable to verify denial of existence for ");
+							printf(BOGUS " Unable to verify denial of existence for ");
 							ldns_rdf_print(stdout, labels[i - 1]);
 							printf(" DS: %s\n", ldns_get_errorstr_by_id(status));
 						}
@@ -748,7 +753,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 						}
 						printf("\n");
 					} else {
-						printf("[B] Unable to verify denial of existence for ");
+						printf(BOGUS " Unable to verify denial of existence for ");
 						ldns_rdf_print(stdout, name);
 						printf(" type ");
 						if (descriptor && descriptor->_name) {
@@ -774,7 +779,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 		ldns_rr_list_deep_free(ds_sig_list);
 		ds_sig_list = NULL;
 	}
-	printf(";;" SELF " self sig OK; " BOGUS " bogus; " TRUST " trusted\n");
+	printf(";;" SELF " self sig OK; " BOGUS " bogus; " TRUST " trusted; " UNSIGNED " unsigned\n");
 	/* verbose mode?
 	printf("Trusted keys:\n");
 	ldns_rr_list_print(stdout, trusted_keys);

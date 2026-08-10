@@ -45,7 +45,7 @@
 /* Result generation, appends (ldns_pkt *) after the result. */
 %typemap(argout,noblock=1) (ldns_pkt **)
 {
-  $result = SWIG_Python_AppendOutput($result,
+  $result = SWIG_AppendOutput($result,
     SWIG_NewPointerObj(SWIG_as_voidptr($1_pkt),
       SWIGTYPE_p_ldns_struct_pkt, SWIG_POINTER_OWN |  0 ));
 }
@@ -736,7 +736,7 @@ This simple example instances a resolver in order to resolve NS for nic.cz."
             """
                Return the packet's edns data.
                
-               :return: (:class:`ldns_rdf`) The ensd data.
+               :return: (:class:`ldns_rdf`) The edns data.
             """
             return _ldns._ldns_pkt_edns_data(self)
             #parameters: const ldns_pkt *,
@@ -1346,7 +1346,7 @@ This simple example instances a resolver in order to resolve NS for nic.cz."
 
         def set_rcode(self, c):
             """
-               Set the packet's respons code.
+               Set the packet's response code.
                
                :param c: The rcode.
                :type c: uint8_t

@@ -16,8 +16,8 @@ KEY
 .SH DESCRIPTION
 
 \fBldns-signzone\fR is used to generate a DNSSEC signed zone. When run it
-will create a new zonefile that contains RRSIG and NSEC resource records, as
-specified in RFC 4033, RFC 4034 and RFC 4035.
+will create a new zonefile that contains RRSIG and NSEC(3) resource records,
+as specified in RFC 4033, RFC 4034 and RFC 4035.
 
 Keys must be specified by their base name (i.e. without .private). If
 the DNSKEY that belongs to the key in the .private file is not present
@@ -25,16 +25,16 @@ in the zone, it will be read from the file <base name>.key. If that
 file does not exist, the DNSKEY value will be generated from the
 private key.
 
-Multiple keys can be specified, Key Signing Keys are used as such when
+Multiple keys can be specified. Key Signing Keys are used as such when
 they are either already present in the zone, or specified in a .key
-file, and have the KSK bit set.
+file, and have the SEP bit set.
 
 .SH OPTIONS
 .TP
 \fB-b\fR
 Augments the zone and the RR's with extra comment texts for a more readable
 layout, easier to debug. DS records will have a bubblebabble version of
-the data in the comment text, NSEC3 records will have the original NSEC3
+the data in the comment text, NSEC3 records will have the unhashed owner names
 in the comment text.
 
 Without this option, only DNSKEY RR's will have their Key Tag annotated in
@@ -42,10 +42,7 @@ the comment text.
 
 .TP
 \fB-d\fR
-Normally, if the DNSKEY RR for a key that is used to sign the zone is
-not found in the zone file, it will be read from .key, or derived from
-the private key (in that order). This option turns that feature off,
-so that only the signatures are added to the zone.
+Do not add DNSKEY resource records for used keys to the signed zone.
 
 .TP
 \fB-e\fR \fIdate\fR
@@ -66,8 +63,22 @@ YYYYMMDD[hhmmss], or a timestamp.
 Use this as the origin of the zone
 
 .TP
+\fB-u\fR
+set SOA serial to the number of seconds since 1-1-1970
+
+.TP
 \fB-v\fR
 Print the version and exit
+
+.TP
+\fB-z\fR \fI[scheme:]hash\fR
+Calculate the zone's digest and add those as ZONEMD RRs. The (optional)
+`scheme' must be `simple` (or 1) and `hash' should be `sha384' (or 1) or
+`sha512' (or 2).  This option can be given more than once.
+
+.TP
+\fB-Z\fR
+Allow ZONEMDs to be added without signing
 
 .TP
 \fB-A\fR
@@ -76,6 +87,12 @@ minimal number of keys, to keep the response size for the DNSKEY query
 small, and only the SEP keys that are passed are used.  If there are no
 SEP keys, the DNSKEY RRset is signed with the non\-SEP keys.  This option
 turns off the default and all keys are used to sign the DNSKEY RRset.
+
+.TP
+\fB-U\fR
+Sign with every unique algorithm in the provided keys.  The DNSKEY set
+is signed with all the SEP keys, plus all the non\-SEP keys that have an
+algorithm that was not present in the SEP key set.
 
 .TP
 \fB-E\fR \fIname\fR
@@ -166,7 +183,7 @@ Written by the ldns team as an example for ldns usage.
 Portions of engine support by Vadim Penzin <vadim@penzin.net>. 
 
 .SH REPORTING BUGS
-Report bugs to <ldns-team@nlnetlabs.nl>. 
+Report bugs to <dns-team@nlnetlabs.nl>.
 
 .SH COPYRIGHT
 Copyright (C) 2005-2008 NLnet Labs. This is free software. There is NO

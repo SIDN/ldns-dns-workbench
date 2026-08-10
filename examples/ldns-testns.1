@@ -1,7 +1,7 @@
 .TH ldns-testns 1 "14 Dec 2006"
 .SH NAME
 ldns-testns \- simple fake nameserver tool
-.SH SYNOPSYS
+.SH SYNOPSIS
 .B ldns-testns
 [
 .IR OPTION
@@ -11,7 +11,7 @@ ldns-testns \- simple fake nameserver tool
 .SH DESCRIPTION
 \fBldns-testns\fR can be used to provide answers to DNS queries for
 testing.  The answers are premade, and can be tailored to testing
-needs. The answers can be wildly invalid or unparseable.
+needs. The answers can be wildly invalid or unparsable.
 
 This program is a debugging aid. It is not efficient, especially
 with a long config file, but it can give any reply to any query.
@@ -45,6 +45,16 @@ times to increase verbosity level.
 .TP
 \fB-6\fR
 Bind to IP6 address instead of IP4. Use together with -p. 
+
+.TP
+\fB-l\fR \fIIP address\fR
+Bind to the specified IPv4 or IPv6 address.
+
+.TP
+\fB-a\fR \fIIP address\fR
+IPv4 or IPv6 address to answer from withthe ADJUST change_address directory
+(see below). This can only be used in combination with the \fB-l\fR option
+with an address of the same family.
 
 .TP
 \fBdatafile\fR
@@ -92,9 +102,18 @@ REPLY ...
 
 ADJUST copy_id  ; 'copy_id' copies the ID from the query to the answer.
 
-; 'sleep=10' sleeps for 10 seconds before giving the answer (TCP is open)
+ADJUST change_id ; answer with a different ID than the query had
 
-ADJUST [sleep=<num>]    ; sleep before giving any reply
+ADJUST change_port ; answer from a different port than the query was
+                   ; sent to. UDP only (silently ignored on TCP)
+
+ADJUST change_address ; answer from a different address than the query
+                      ; was sent to. UDP only (silently ignored on TCP)
+
+ADJUST [sleep=<num>] ; sleep before giving any reply
+                     ; 'sleep=10' sleeps for 10 seconds before giving
+                     ; the answer (TCP is open)
+
 ADJUST [packet_sleep=<num>]  ; sleep before this packet in sequence
 
 SECTION QUESTION
@@ -108,6 +127,10 @@ SECTION AUTHORITY
 
 SECTION ADDITIONAL
 <RRs, one per line>
+
+HEX_EDNSDATA_BEGIN
+<Hex data of an EDNS option>
+HEX_EDNSDATA_END
 
 EXTRA_PACKET            ; follow with SECTION, REPLY for more packets.
 HEX_ANSWER_BEGIN        ; follow with hex data
@@ -124,7 +147,7 @@ ENTRY_END
 .SH AUTHOR
 Written by the ldns team as an example for ldns usage, and for testing purposes.
 .SH REPORTING BUGS
-Report bugs to <ldns-team@nlnetlabs.nl>. 
+Report bugs to <dns-team@nlnetlabs.nl>.
 .SH COPYRIGHT
 Copyright (C) 2006-2008 NLnet Labs. This is free software. There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR

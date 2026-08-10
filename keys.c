@@ -15,6 +15,7 @@
 #include <ldns/ldns.h>
 
 #ifdef HAVE_SSL
+#include <openssl/ui.h>
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
 #include <openssl/bn.h>
@@ -22,8 +23,12 @@
 #ifdef USE_DSA
 #include <openssl/dsa.h>
 #endif
-#ifndef OPENSSL_NO_ENGINE
+#if defined(HAVE_OPENSSL_ENGINE_H) && !defined(OPENSSL_NO_ENGINE)
 #include <openssl/engine.h>
+#else
+#  ifndef OPENSSL_NO_ENGINE
+#  define OPENSSL_NO_ENGINE
+#  endif
 #endif
 #endif /* HAVE_SSL */
 
@@ -84,7 +89,7 @@ ldns_key_new(void)
 	if (!newkey) {
 		return NULL;
 	} else {
-		/* some defaults - not sure wether to do this */
+		/* some defaults - not sure whether to do this */
 		ldns_key_set_use(newkey, true);
 		ldns_key_set_flags(newkey, LDNS_KEY_ZONE_KEY);
 		ldns_key_set_origttl(newkey, 0);
@@ -116,23 +121,19 @@ ldns_key_new_frm_engine(ldns_key **key, ENGINE *e, char *key_id, ldns_algorithm 
 	k = ldns_key_new();
         if(!k) return LDNS_STATUS_MEM_ERR;
 #ifndef S_SPLINT_S
-	k->_key.key = ENGINE_load_private_key(e, key_id, UI_OpenSSL(), NULL);
-        if(!k->_key.key) {
-                ldns_key_free(k);
-                return LDNS_STATUS_ERR;
-        }
 	ldns_key_set_algorithm(k, (ldns_signing_algorithm) alg);
+	k->_key.key = ENGINE_load_private_key(e, key_id, UI_OpenSSL(), NULL);
 	if (!k->_key.key) {
                 ldns_key_free(k);
 		return LDNS_STATUS_ENGINE_KEY_NOT_LOADED;
-	} 
+	}
 #endif /* splint */
 	*key = k;
 	return LDNS_STATUS_OK;
 }
 #endif
 
-#ifdef USE_GOST
+#if defined(USE_GOST) && !defined(OPENSSL_NO_ENGINE)
 /** store GOST engine reference loaded into OpenSSL library */
 ENGINE* ldns_gost_engine = NULL;
 
@@ -787,7 +788,7 @@ ldns_key_new_frm_fp_rsa_l(FILE *f, int *line_nr)
 	}
 
 	/* I could use functions again, but that seems an overkill,
-	 * allthough this also looks tedious
+	 * although this also looks tedious
 	 */
 
 	/* Modules, rsa->n */
@@ -872,7 +873,7 @@ ldns_key_new_frm_fp_rsa_l(FILE *f, int *line_nr)
 	}
 #endif /* splint */
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || (defined(HAVE_LIBRESSL) && LIBRESSL_VERSION_NUMBER < 0x20700000)
 # ifndef S_SPLINT_S
 	rsa->n = n;
 	rsa->e = e;
@@ -916,6 +917,7 @@ error:
 	return NULL;
 }
 
+#ifdef USE_DSA
 DSA *
 ldns_key_new_frm_fp_dsa(FILE *f)
 {
@@ -992,7 +994,7 @@ ldns_key_new_frm_fp_dsa_l(FILE *f, ATTR_UNUSED(int *line_nr))
 	}
 #endif /* splint */
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || (defined(HAVE_LIBRESSL) && LIBRESSL_VERSION_NUMBER < 0x20700000)
 # ifndef S_SPLINT_S
 	dsa->p = p;
 	dsa->q = q;
@@ -1026,6 +1028,7 @@ error:
 	BN_free(pub_key);
 	return NULL;
 }
+#endif /* USE_DSA */
 
 unsigned char *
 ldns_key_new_frm_fp_hmac(FILE *f, size_t *hmac_size)
@@ -1161,9 +1164,9 @@ ldns_key_new_frm_algorithm(ldns_signing_algorithm alg, uint16_t size)
 #endif /* HAVE_EVP_PKEY_KEYGEN */
 #endif /* HAVE_SSL */
 			break;
+#ifdef USE_DSA
 		case LDNS_SIGN_DSA:
 		case LDNS_SIGN_DSA_NSEC3:
-#ifdef USE_DSA
 #ifdef HAVE_SSL
 # if OPENSSL_VERSION_NUMBER < 0x00908000L
 			d = DSA_generate_parameters((int)size, NULL, 0, NULL, NULL, NULL, NULL);
@@ -1456,7 +1459,7 @@ ldns_key_set_keytag(ldns_key *k, uint16_t tag)
 size_t
 ldns_key_list_key_count(const ldns_key_list *key_list)
 {
-	        return key_list->_key_count;
+	return key_list ? key_list->_key_count : 0;
 }       
 
 ldns_key *
@@ -1540,11 +1543,13 @@ ldns_key_hmac_key(const ldns_key *k)
 size_t
 ldns_key_hmac_size(const ldns_key *k)
 {
+#ifndef __clang_analyzer__
 	if (k->_key.hmac.size) {
 		return k->_key.hmac.size;
 	} else {
 		return 0;
 	}
+#endif
 }
 
 void *
@@ -1670,7 +1675,7 @@ ldns_key_rsa2bin(unsigned char *data, RSA *k, uint16_t *size)
 	if (!k) {
 		return false;
 	}
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || (defined(HAVE_LIBRESSL) && LIBRESSL_VERSION_NUMBER < 0x20700000)
 	n = k->n;
 	e = k->e;
 #else
@@ -1891,10 +1896,10 @@ ldns_key2rr(const ldns_key *k)
 #endif
 			size++;
 			break;
+#ifdef USE_DSA
 		case LDNS_SIGN_DSA:
 			ldns_rr_push_rdf(pubkey,
 					ldns_native2rdf_int8(LDNS_RDF_TYPE_ALG, LDNS_DSA));
-#ifdef USE_DSA
 #ifdef HAVE_SSL
 			dsa = ldns_key_dsa_key(k);
 			if (dsa) {
@@ -1914,10 +1919,10 @@ ldns_key2rr(const ldns_key *k)
 #endif /* HAVE_SSL */
 #endif /* USE_DSA */
 			break;
+#ifdef USE_DSA
 		case LDNS_SIGN_DSA_NSEC3:
 			ldns_rr_push_rdf(pubkey,
 					ldns_native2rdf_int8(LDNS_RDF_TYPE_ALG, LDNS_DSA_NSEC3));
-#ifdef USE_DSA
 #ifdef HAVE_SSL
 			dsa = ldns_key_dsa_key(k);
 			if (dsa) {
@@ -2178,7 +2183,9 @@ ldns_signing_algorithm ldns_get_signing_algorithm_by_name(const char* name)
         ldns_lookup_table aliases[] = {
                 /* from bind dnssec-keygen */
                 {LDNS_SIGN_HMACMD5, "HMAC-MD5"},
+#ifdef USE_DSA
                 {LDNS_SIGN_DSA_NSEC3, "NSEC3DSA"},
+#endif /* USE_DSA */
                 {LDNS_SIGN_RSASHA1_NSEC3, "NSEC3RSASHA1"},
                 /* old ldns usage, now RFC names */
 #ifdef USE_DSA

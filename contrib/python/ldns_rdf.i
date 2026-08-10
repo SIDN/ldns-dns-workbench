@@ -45,18 +45,23 @@
 /* Result generation, appends (ldns_rdf *) after the result. */
 %typemap(argout, noblock=1) (ldns_rdf **)
 {
-  $result = SWIG_Python_AppendOutput($result,
+  $result = SWIG_AppendOutput($result,
     SWIG_NewPointerObj(SWIG_as_voidptr($1_rdf),
       SWIGTYPE_p_ldns_struct_rdf, SWIG_POINTER_OWN | 0));
 }
 
+#if SWIG_VERSION < 0x040200
 /*
  * Automatic conversion of const (ldns_rdf *) parameter from string.
  * Argument default value.
  */
 %typemap(arginit, noblock=1) const ldns_rdf *
 {
+#if SWIG_VERSION >= 0x040200
+  PyObject *$1_bytes = NULL;
+#else
   char *$1_str = NULL;
+#endif
 }
 
 /*
@@ -66,11 +71,17 @@
 %typemap(in, noblock=1) const ldns_rdf * (void* argp, $1_ltype tmp = 0, int res)
 {
   if (Python_str_Check($input)) {
+    const char *argstr;
+#if SWIG_VERSION >= 0x040200
+    argstr = SWIG_PyUnicode_AsUTF8AndSize($input, NULL, &$1_bytes);
+#else
     $1_str = SWIG_Python_str_AsChar($input);
-    if ($1_str == NULL) {
+    argstr = $1_str;
+#endif
+    if (argstr == NULL) {
       %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
     }
-    tmp = ldns_dname_new_frm_str($1_str);
+    tmp = ldns_dname_new_frm_str(argstr);
     if (tmp == NULL) {
       %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
     }
@@ -90,11 +101,63 @@
  */
 %typemap(freearg, noblock=1) const ldns_rdf *
 {
+#if SWIG_VERSION >= 0x040200
+  if ($1_bytes != NULL) {
+    /* Is not NULL only when a conversion form string occurred. */
+    Py_XDECREF($1_bytes);
+  }
+#else
   if ($1_str != NULL) {
     /* Is not NULL only when a conversion form string occurred. */
     SWIG_Python_str_DelForPy3($1_str); /* Is a empty macro for Python < 3. */
   }
+#endif
 }
+
+#else
+/*
+ * Automatic conversion of const (ldns_rdf *) parameter from string.
+ * Argument default value.
+ */
+%typemap(arginit, noblock=1) const ldns_rdf *
+{
+  PyObject *$1_bytes = NULL;
+}
+
+/*
+ * Automatic conversion of const (ldns_rdf *) parameter from string.
+ * Preparation of arguments.
+ */
+%typemap(in, noblock=1) const ldns_rdf * (void* argp, $1_ltype tmp = 0, int res)
+{
+  if (Python_str_Check($input)) {
+    const char *$1_str = SWIG_PyUnicode_AsUTF8AndSize($input, NULL, &$1_bytes);
+    if ($1_str == NULL) {
+      %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
+    }
+    tmp = ldns_dname_new_frm_str($1_str);
+    if (tmp == NULL) {
+      %argument_fail(SWIG_TypeError, "char *", $symname, $argnum);
+    }
+    $1 = ($1_ltype) tmp;
+  } else {
+    res = SWIG_ConvertPtr($input, &argp, SWIGTYPE_p_ldns_struct_rdf, 0 | 0);
+    if (!SWIG_IsOK(res)) {
+      %argument_fail(res, "ldns_rdf const *", $symname, $argnum);
+    }
+    $1 = ($1_ltype) argp;
+  }
+}
+
+/*
+ * Automatic conversion of const (ldns_rdf *) parameter from string.
+ * Freeing of allocated memory (it's a no op unless compiling for some older versions of the Python stable ABI).
+ */
+%typemap(freearg, noblock=1) const ldns_rdf *
+{
+  Py_XDECREF($1_bytes);
+}
+#endif
 
 %nodefaultctor ldns_struct_rdf; /* No default constructor. */
 %nodefaultdtor ldns_struct_rdf; /* No default destructor. */
@@ -222,6 +285,7 @@
                         case LDNS_RDF_TYPE_TAG:        return "TAG";
                         case LDNS_RDF_TYPE_LONG_STR:   return "LONG_STR";
 			case LDNS_RDF_TYPE_AMTRELAY:   return "AMTRELAY";
+                        case LDNS_RDF_TYPE_SVCPARAMS:  return "SVCPARAMS";
                         case LDNS_RDF_TYPE_CERTIFICATE_USAGE:
                             return "CERTIFICATE_USAGE";
                         case LDNS_RDF_TYPE_SELECTOR:   return "SELECTOR";
@@ -314,8 +378,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             rr = _ldns.ldns_rdf_new_frm_str(rr_type, string)
             if (not rr) and raiseException:
-                raise Exception("Can't create query packet, " +
-                    "error: %d" % status)
+                raise Exception("Can't create query packet")
             return rr
 
         #
@@ -585,7 +648,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.dname_new_frm_str() method is" +
                 " scheduled to be deprecated in future releases." +
-                " Use ldsn_dname constructor instead.",
+                " Use ldns_dname constructor instead.",
                 PendingDeprecationWarning, stacklevel=2)
             return _ldns.ldns_dname_new_frm_str(string)
 
@@ -608,7 +671,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.absolute() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             if self.get_type() == _ldns.LDNS_RDF_TYPE_DNAME:
                 string = self.__str__()
@@ -630,7 +693,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.make_canonical() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             _ldns.ldns_dname2canonical(self)
 
@@ -653,7 +716,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.dname_compare() method is" +
                 " scheduled to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             #
             # The wrapped function generates asserts instead of setting
@@ -685,7 +748,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.cat() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             return _ldns.ldns_dname_cat(self, rd2)
             #parameters: ldns_rdf *, ldns_rdf *,
@@ -710,7 +773,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.cat_clone() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             return _ldns.ldns_dname_cat_clone(self, rd2)
             #parameters: const ldns_rdf *, const ldns_rdf *,
@@ -740,7 +803,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.interval() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             #
             # The wrapped function generates asserts instead of setting
@@ -779,7 +842,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.is_subdomain() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             return _ldns.ldns_dname_is_subdomain(self, parent)
             #parameters: const ldns_rdf *, const ldns_rdf *,
@@ -806,7 +869,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.label() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             return _ldns.ldns_dname_label(self, labelpos)
             #parameters: const ldns_rdf *, uint8_t,
@@ -826,7 +889,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.label_count() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             return _ldns.ldns_dname_label_count(self)
             #parameters: const ldns_rdf *,
@@ -848,7 +911,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.left_chop() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             return _ldns.ldns_dname_left_chop(self)
             #parameters: const ldns_rdf *,
@@ -871,7 +934,7 @@ specified in the (16-bit) type field with a value from ldns_rdf_type."
             """
             warnings.warn("The ldns_rdf.reverse() method is scheduled" +
                 " to be deprecated in future releases." +
-                " Convert the ldns_rdf to ldsn_dname and the use its" +
+                " Convert the ldns_rdf to ldns_dname and the use its" +
                 " methods.", PendingDeprecationWarning, stacklevel=2)
             if self.get_type() != _ldns.LDNS_RDF_TYPE_DNAME:
                 raise Exception("Operand must be a dname rdf.")

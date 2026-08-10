@@ -85,6 +85,7 @@ entry_add_reply(struct entry* entry)
 	pkt->packet_sleep = 0;
 	pkt->reply = ldns_pkt_new();
 	pkt->reply_from_hex = NULL;
+	pkt->raw_ednsdata = NULL;
 	/* link at end */
 	while(*p)
 		p = &((*p)->next);
@@ -113,6 +114,8 @@ static void matchline(char* line, struct entry* e)
 			e->match_ttl = true;
 		} else if(str_keyword(&parse, "DO")) {
 			e->match_do = true;
+		} else if(str_keyword(&parse, "CO")) {
+			e->match_co = true;
 		} else if(str_keyword(&parse, "noedns")) {
 			e->match_noedns = true;
 		} else if(str_keyword(&parse, "ednsdata")) {
@@ -127,6 +130,13 @@ static void matchline(char* line, struct entry* e)
 				error("expected = or : in MATCH: %s", line);
 			parse++;
 			e->ixfr_soa_serial = (uint32_t)strtol(parse, (char**)&parse, 10);
+			while(isspace((int)*parse)) 
+				parse++;
+		} else if(str_keyword(&parse, "udp_size")) {
+			if(*parse != '=' && *parse != ':')
+				error("expected = or : in MATCH: %s", line);
+			parse++;
+			e->match_udp_size = (uint32_t)strtol(parse, (char**)&parse, 10);
 			while(isspace((int)*parse)) 
 				parse++;
 		} else {
@@ -194,6 +204,9 @@ static void replyline(char* line, ldns_pkt *reply)
 		} else if(str_keyword(&parse, "DO")) {
 			ldns_pkt_set_edns_udp_size(reply, 4096);
 			ldns_pkt_set_edns_do(reply, true);
+		} else if(str_keyword(&parse, "CO")) {
+			ldns_pkt_set_edns_udp_size(reply, 4096);
+			ldns_pkt_set_edns_co(reply, true);
 		} else {
 			error("could not parse REPLY: '%s'", parse);
 		}
@@ -210,6 +223,12 @@ static void adjustline(char* line, struct entry* e,
 			return;
 		if(str_keyword(&parse, "copy_id")) {
 			e->copy_id = true;
+		} else if(str_keyword(&parse, "change_id")) {
+			e->change_id = true;
+		} else if(str_keyword(&parse, "change_port")) {
+			e->change_port = true;
+		} else if(str_keyword(&parse, "change_address")) {
+			e->change_addr = true;
 		} else if(str_keyword(&parse, "copy_query")) {
 			e->copy_query = true;
 		} else if(str_keyword(&parse, "sleep=")) {
@@ -238,12 +257,17 @@ static struct entry* new_entry(void)
 	e->match_all = false;
 	e->match_ttl = false;
 	e->match_do = false;
+	e->match_co = false;
 	e->match_noedns = false;
 	e->match_serial = false;
 	e->ixfr_soa_serial = 0;
 	e->match_transport = transport_any;
+	e->match_udp_size = 0;
 	e->reply_list = NULL;
 	e->copy_id = false;
+	e->change_id = false;
+	e->change_port = false;
+	e->change_addr = false;
 	e->copy_query = false;
 	e->sleeptime = 0;
 	e->next = NULL;
@@ -324,11 +348,11 @@ data_buffer2wire(ldns_buffer *data_buffer)
 	size_t wirelen;
 	uint8_t *data_wire = (uint8_t *) ldns_buffer_begin(data_buffer);
 	uint8_t *wire = LDNS_XMALLOC(uint8_t, LDNS_MAX_PACKETLEN);
-	
+
 	hexbuf = LDNS_XMALLOC(uint8_t, LDNS_MAX_PACKETLEN);
 	for (data_buf_pos = 0; data_buf_pos < ldns_buffer_position(data_buffer); data_buf_pos++) {
 		c = (int) data_wire[data_buf_pos];
-		
+
 		if (state < 2 && !isascii(c)) {
 			/*verbose("non ascii character found in file: (%d) switching to raw mode\n", c);*/
 			state = 2;
@@ -502,14 +526,28 @@ read_entry(FILE* in, const char* name, int *lineno, uint32_t* default_ttl,
 			ldns_buffer_printf(hex_data_buffer, line);
 		} else if(str_keyword(&parse, "HEX_EDNSDATA_BEGIN")) {
 			hex_ednsdata_buffer = ldns_buffer_new(LDNS_MAX_PACKETLEN);
+
 			reading_hex_ednsdata = true;
 		} else if(str_keyword(&parse, "HEX_EDNSDATA_END")) {
+			ldns_buffer* edns = NULL;
 			if (!reading_hex_ednsdata) {
 				error("%s line %d: HEX_EDNSDATA_END read but no"
 					"HEX_EDNSDATA_BEGIN keyword seen", name, *lineno);
 			}
 			reading_hex_ednsdata = false;
+
+			edns = data_buffer2wire(hex_ednsdata_buffer);
+
+			/* add read-in EDNS directly to the reply */
+			ldns_pkt_set_edns_data(cur_reply->reply,
+				ldns_rdf_new_frm_data(LDNS_RDF_TYPE_UNKNOWN,
+					ldns_buffer_limit(edns),
+					ldns_buffer_begin(edns)));
+
+			/* store raw EDNS for matching */
 			cur_reply->raw_ednsdata = data_buffer2wire(hex_ednsdata_buffer);
+
+			ldns_buffer_free(edns);
 			ldns_buffer_free(hex_ednsdata_buffer);
 			hex_ednsdata_buffer = NULL;
 		} else if(reading_hex_ednsdata) {
@@ -741,9 +779,13 @@ find_match(struct entry* entries, ldns_pkt* query_pkt,
 			continue;
 		}
 		if(p->match_qname) {
-			if(!get_owner(query_pkt) || !get_owner(reply) ||
-				ldns_dname_compare(
-				get_owner(query_pkt), get_owner(reply)) != 0) {
+			if (!get_owner(query_pkt) || !get_owner(reply)
+			|| (  !p->copy_query
+			   &&  ldns_dname_compare( get_owner(query_pkt)
+			                         , get_owner(reply)))
+			|| (   p->copy_query
+			   && !ldns_dname_match_wildcard( get_owner(query_pkt)
+			                                , get_owner(reply)))) {
 				verbose(3, "bad qname\n");
 				continue;
 			}
@@ -767,6 +809,10 @@ find_match(struct entry* entries, ldns_pkt* query_pkt,
 			verbose(3, "no DO bit set\n");
 			continue;
 		}
+		if(p->match_co && !ldns_pkt_edns_co(query_pkt)) {
+			verbose(3, "no CO bit set\n");
+			continue;
+		}
 		if(p->match_noedns && ldns_pkt_edns(query_pkt)) {
 			verbose(3, "bad; EDNS OPT present\n");
 			continue;
@@ -778,6 +824,12 @@ find_match(struct entry* entries, ldns_pkt* query_pkt,
 		}
 		if(p->match_transport != transport_any && p->match_transport != transport) {
 			verbose(3, "bad transport\n");
+			continue;
+		}
+		if(p->match_udp_size > 0 && transport == transport_udp && (
+			!ldns_pkt_edns(query_pkt) ||
+			ldns_pkt_edns_udp_size(query_pkt) < p->match_udp_size)) {
+			verbose(3, "bad udp_size\n");
 			continue;
 		}
 		if(p->match_all && !match_all(query_pkt, reply, p->match_ttl)) {
@@ -796,6 +848,8 @@ adjust_packet(struct entry* match, ldns_pkt* answer_pkt, ldns_pkt* query_pkt)
 	/* copy & adjust packet */
 	if(match->copy_id)
 		ldns_pkt_set_id(answer_pkt, ldns_pkt_id(query_pkt));
+	if(match->change_id)
+		ldns_pkt_set_id(answer_pkt, 65535 - ldns_pkt_id(query_pkt));
 	if(match->copy_query) {
 		ldns_rr_list* list = ldns_pkt_get_section_clone(query_pkt,
 			LDNS_SECTION_QUESTION);
@@ -818,7 +872,8 @@ adjust_packet(struct entry* match, ldns_pkt* answer_pkt, ldns_pkt* query_pkt)
  */
 void
 handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
-	enum transport_type transport, void (*sendfunc)(uint8_t*, size_t, void*),
+	enum transport_type transport,
+	void (*sendfunc)(uint8_t*, size_t, void*, bool, bool),
 	void* userdata, FILE* verbose_out)
 {
 	ldns_status status;
@@ -834,7 +889,7 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 	status = ldns_wire2pkt(&query_pkt, inbuf, (size_t)inlen);
 	if (status != LDNS_STATUS_OK) {
 		verbose(1, "Got bad packet: %s\n", ldns_get_errorstr_by_id(status));
-		ldns_rdf_free(stop_command);
+		ldns_rdf_deep_free(stop_command);
 		return;
 	}
 	
@@ -855,7 +910,7 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 	if(!entry || !entry->reply_list) {
 		verbose(1, "no answer packet for this query, no reply.\n");
 		ldns_pkt_free(query_pkt);
-		ldns_rdf_free(stop_command);
+		ldns_rdf_deep_free(stop_command);
 		return;
 	}
 	for(p = entry->reply_list; p; p = p->next)
@@ -874,7 +929,7 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 				if (status != LDNS_STATUS_OK) {
 					verbose(1, "Error creating answer: %s\n", ldns_get_errorstr_by_id(status));
 					ldns_pkt_free(query_pkt);
-					ldns_rdf_free(stop_command);
+					ldns_rdf_deep_free(stop_command);
 					return;
 				}
 				ldns_pkt_free(answer_pkt);
@@ -889,6 +944,10 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 					ldns_write_uint16(outbuf, 
 						ldns_pkt_id(query_pkt));
 				}
+				if(entry->change_id) {
+					ldns_write_uint16(outbuf,
+						65535 - ldns_pkt_id(query_pkt));
+				}
 			}
 		} else {
 			answer_pkt = ldns_pkt_clone(p->reply);
@@ -899,7 +958,7 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 			if (status != LDNS_STATUS_OK) {
 				verbose(1, "Error creating answer: %s\n", ldns_get_errorstr_by_id(status));
 				ldns_pkt_free(query_pkt);
-				ldns_rdf_free(stop_command);
+				ldns_rdf_deep_free(stop_command);
 				return;
 			}
 			ldns_pkt_free(answer_pkt);
@@ -916,13 +975,13 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 			verbose(3, "wakeup for next packet "
 				"(slept %d secs)\n", p->packet_sleep);
 		}
-		sendfunc(outbuf, answer_size, userdata);
+		sendfunc(outbuf, answer_size, userdata, entry->change_port, entry->change_addr);
 		LDNS_FREE(outbuf);
 		outbuf = NULL;
 		answer_size = 0;
 	}
 	ldns_pkt_free(query_pkt);
-	ldns_rdf_free(stop_command);
+	ldns_rdf_deep_free(stop_command);
 }
 
 /** delete the list of reply packets */

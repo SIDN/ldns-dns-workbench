@@ -73,7 +73,7 @@
  * Please make sure that your system defines BYTE_ORDER.  If your
  * architecture is little-endian, make sure it also defines
  * LITTLE_ENDIAN and that the two (BYTE_ORDER and LITTLE_ENDIAN) are
- * equivilent.
+ * equivalent.
  *
  * If your system does not define the above, then you can do so by
  * hand like this:
@@ -494,7 +494,8 @@ static void ldns_sha256_Transform(ldns_sha256_CTX* context,
 
 	/* Clean up */
 	a = b = c = d = e = f = g = h = T1 = T2 = 0;
-	(void)a;
+	(void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; (void)h;
+	(void)T1; (void)T2;
 }
 
 #endif /* SHA2_UNROLL_TRANSFORM */
@@ -528,7 +529,7 @@ void ldns_sha256_update(ldns_sha256_CTX* context, const sha2_byte *data, size_t 
 			context->bitcount += len << 3;
 			/* Clean up: */
 			usedspace = freespace = 0;
-			(void)usedspace;
+			(void)usedspace; (void)freespace;
 			return;
 		}
 	}
@@ -546,7 +547,7 @@ void ldns_sha256_update(ldns_sha256_CTX* context, const sha2_byte *data, size_t 
 	}
 	/* Clean up: */
 	usedspace = freespace = 0;
-	(void)usedspace;
+	(void)usedspace; (void)freespace;
 }
 
 typedef union _ldns_sha2_buffer_union {
@@ -554,7 +555,7 @@ typedef union _ldns_sha2_buffer_union {
         uint64_t* theLongs;
 } ldns_sha2_buffer_union;
 
-void ldns_sha256_final(sha2_byte digest[], ldns_sha256_CTX* context) {
+void ldns_sha256_final(sha2_byte digest[LDNS_SHA256_DIGEST_LENGTH], ldns_sha256_CTX* context) {
 	sha2_word32	*d = (sha2_word32*)digest;
 	size_t usedspace;
 	ldns_sha2_buffer_union cast_var;
@@ -621,7 +622,7 @@ void ldns_sha256_final(sha2_byte digest[], ldns_sha256_CTX* context) {
 }
 
 unsigned char *
-ldns_sha256(unsigned char *data, unsigned int data_len, unsigned char *digest)
+ldns_sha256(const unsigned char *data, unsigned int data_len, unsigned char *digest)
 {
     ldns_sha256_CTX ctx;
     ldns_sha256_init(&ctx);
@@ -737,6 +738,7 @@ static void ldns_sha512_Transform(ldns_sha512_CTX* context,
 	sha2_word64	a, b, c, d, e, f, g, h, s0, s1;
 	sha2_word64	T1, T2, *W512 = (sha2_word64*)context->buffer;
 	int		j;
+	sha2_word64	aligned;
 
 	/* initialize registers with the prev. intermediate value */
 	a = context->state[0];
@@ -752,7 +754,8 @@ static void ldns_sha512_Transform(ldns_sha512_CTX* context,
 	do {
 #if BYTE_ORDER == LITTLE_ENDIAN
 		/* Convert TO host byte order */
-		REVERSE64(*data++, W512[j]);
+		memcpy(&aligned, data++, sizeof(aligned));
+		REVERSE64(aligned, W512[j]);
 		/* Apply the SHA-512 compression function to update a..h */
 		T1 = h + Sigma1_512(e) + Ch(e, f, g) + K512[j] + W512[j];
 #else /* BYTE_ORDER == LITTLE_ENDIAN */
@@ -807,7 +810,8 @@ static void ldns_sha512_Transform(ldns_sha512_CTX* context,
 
 	/* Clean up */
 	a = b = c = d = e = f = g = h = T1 = T2 = 0;
-	(void)a;
+	(void)a; (void)b; (void)c; (void)d; (void)e; (void)f; (void)g; (void)h;
+	(void)T1; (void)T2;
 }
 
 #endif /* SHA2_UNROLL_TRANSFORM */
@@ -841,7 +845,7 @@ void ldns_sha512_update(ldns_sha512_CTX* context, const sha2_byte *data, size_t 
 			ADDINC128(context->bitcount, len << 3);
 			/* Clean up: */
 			usedspace = freespace = 0;
-			(void)usedspace;
+			(void)usedspace; (void)freespace;
 			return;
 		}
 	}
@@ -859,7 +863,7 @@ void ldns_sha512_update(ldns_sha512_CTX* context, const sha2_byte *data, size_t 
 	}
 	/* Clean up: */
 	usedspace = freespace = 0;
-	(void)usedspace;
+	(void)usedspace; (void)freespace;
 }
 
 static void ldns_sha512_Last(ldns_sha512_CTX* context) {
@@ -905,7 +909,7 @@ static void ldns_sha512_Last(ldns_sha512_CTX* context) {
 	ldns_sha512_Transform(context, (sha2_word64*)context->buffer);
 }
 
-void ldns_sha512_final(sha2_byte digest[], ldns_sha512_CTX* context) {
+void ldns_sha512_final(sha2_byte digest[LDNS_SHA512_DIGEST_LENGTH], ldns_sha512_CTX* context) {
 	sha2_word64	*d = (sha2_word64*)digest;
 
 	/* Sanity check: */
@@ -935,7 +939,7 @@ void ldns_sha512_final(sha2_byte digest[], ldns_sha512_CTX* context) {
 }
 
 unsigned char *
-ldns_sha512(unsigned char *data, unsigned int data_len, unsigned char *digest)
+ldns_sha512(const unsigned char *data, unsigned int data_len, unsigned char *digest)
 {
     ldns_sha512_CTX ctx;
     ldns_sha512_init(&ctx);
@@ -958,7 +962,7 @@ void ldns_sha384_update(ldns_sha384_CTX* context, const sha2_byte* data, size_t 
 	ldns_sha512_update((ldns_sha512_CTX*)context, data, len);
 }
 
-void ldns_sha384_final(sha2_byte digest[], ldns_sha384_CTX* context) {
+void ldns_sha384_final(sha2_byte digest[LDNS_SHA384_DIGEST_LENGTH], ldns_sha384_CTX* context) {
 	sha2_word64	*d = (sha2_word64*)digest;
 
 	/* Sanity check: */
@@ -988,7 +992,7 @@ void ldns_sha384_final(sha2_byte digest[], ldns_sha384_CTX* context) {
 }
 
 unsigned char *
-ldns_sha384(unsigned char *data, unsigned int data_len, unsigned char *digest)
+ldns_sha384(const unsigned char *data, unsigned int data_len, unsigned char *digest)
 {
     ldns_sha384_CTX ctx;
     ldns_sha384_init(&ctx);
