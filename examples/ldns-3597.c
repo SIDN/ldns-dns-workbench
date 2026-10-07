@@ -156,7 +156,7 @@ main(int argc, char** argv) {
     int c;
     size_t cur_len = 0;
     size_t cur_arg = 0;
-    char *str;
+    char *str, *p;
     unsigned int cur_line_nr = 0;
     ldns_rr *rr = NULL;
     ldns_status result;
@@ -239,6 +239,10 @@ main(int argc, char** argv) {
             continue;
         }
 
+        p = strstr(str, "\n");
+        if (p != NULL) {
+            *p = '\0';
+        }
         result = ldns_rr_new_frm_str(&rr, str, 0, NULL, NULL);
         if (result != LDNS_STATUS_OK) {
             printf("Error parsing RR: %s\n",
